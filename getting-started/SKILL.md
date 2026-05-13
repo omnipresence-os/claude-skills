@@ -171,7 +171,7 @@ Write the chosen path to `~/.claude/skills/.omnipresence-path` so the `sync-omni
 On Windows: `%USERPROFILE%\.claude\skills\.omnipresence-path`
 On Mac/Linux: `~/.claude/skills/.omnipresence-path`
 
-### Step 11: Report success
+### Step 11: Report success and tell them how to open their new folder
 
 Tell the user, exactly:
 
@@ -182,7 +182,23 @@ Tell the user, exactly:
   Local clone:        <chosen-path>
   Upstream link:      omnipresence-os/synapse
 
-Three prompts you'll use going forward:
+──────────────────────────────────────────────────
+Next step — open the synapse folder in your IDE
+
+You're currently in a launchpad folder. The actual synapse content
+lives at the path above. To start working with it:
+
+  1. In VS Code (or Cursor): File → Open Folder
+  2. Navigate to <chosen-path>
+  3. Click "Open"
+  4. You can close this current window once the new one opens —
+     the launchpad folder has served its purpose.
+
+(Tip: if you're on a Mac, the shortcut is Cmd+O. On Windows/Linux,
+Ctrl+K then Ctrl+O.)
+──────────────────────────────────────────────────
+
+Three prompts you'll use going forward (in your new synapse folder):
 
   • To pull the latest methodology from upstream:
     "Sync omnipresence."
