@@ -7,6 +7,21 @@ description: Commits and pushes the user's customizations in custom/ and overrid
 
 This skill commits and pushes the user's work in `custom/` and `overrides/` to their GitHub fork. ONE canonical flow. Refuses to push `core/` edits.
 
+## How to talk to the user during this skill
+
+**Critical UX rule:** do NOT show the user shell commands or terminal output. Run commands silently and explain in plain English.
+
+✅ Good: *"I found 3 changed files in your custom/ folder. Pushing them to your fork..."*
+❌ Bad: *"Running `git add custom/ && git commit -m '...' && git push origin main`..."*
+
+Only show:
+- Plain-English summaries ("3 files in custom/ ready to save").
+- A clear question for a commit message ("What should I label this change?").
+- The remediation menu when core/ edits exist (the 3-option choice).
+- A success message after the push.
+
+Never show: git status output, file paths formatted like terminal output, raw commit hashes. List filenames in human prose.
+
 ## Prerequisites
 
 - The user has already run `getting-started` (their local synapse exists, upstream remote is wired).

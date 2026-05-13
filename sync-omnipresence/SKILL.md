@@ -7,6 +7,20 @@ description: Pulls the latest methodology updates from omnipresence-os/synapse u
 
 This skill pulls the latest methodology, processes, and skills from `omnipresence-os/synapse` into the member's local clone and pushes the merge to their GitHub fork. ONE canonical flow. No alternatives.
 
+## How to talk to the user during this skill
+
+**Critical UX rule:** do NOT show the user shell commands or terminal output in your replies. Run commands silently and explain what's happening in plain English. The user is not a coder. Shell commands look scary and lose them.
+
+✅ Good: *"Pulling the latest updates from upstream... 12 new files, no conflicts."*
+❌ Bad: *"Running `git fetch upstream && git merge upstream/main`..."*
+
+Only show:
+- Plain-English progress updates ("Stashing your work-in-progress safely..." / "Merging upstream changes...").
+- Human-readable summaries of what changed (e.g., "Synced. 12 new commits — 3 new methodologies, 2 new skills, 7 updates").
+- Clear yes/no recovery prompts if a conflict happens.
+
+Never show: `git status` output, raw commit hashes, merge marker syntax, remote URLs, branch names. Translate to human terms before surfacing.
+
 ## Prerequisites
 
 - The user has already run `getting-started` (their local synapse exists, upstream remote is wired). If not, redirect them: "It looks like Omnipresence isn't set up yet. Run getting started first."
