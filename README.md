@@ -14,9 +14,11 @@ Claude Code will:
 
 After that, you'll never have to think about installation again.
 
-## The three prompts
+## The prompts
 
-Once installed, these are the only three prompts you ever need:
+Once installed, these are the prompts you'll use:
+
+**Setup & sync:**
 
 | What you want to do | Prompt |
 |---|---|
@@ -24,7 +26,24 @@ Once installed, these are the only three prompts you ever need:
 | **Pull the latest methodology updates** | `Sync omnipresence.` |
 | **Save your customizations to your private fork** | `Push my synapse changes.` |
 
-That's it.
+**Managing multiple clients / projects:**
+
+| What you want to do | Prompt |
+|---|---|
+| **Create a new project** | `Create a new project for X.` |
+| **List all your projects** | `List my projects.` |
+| **Switch which project is active** | `Switch to project X.` |
+| **See what's in the active project** | `What's in this project?` |
+
+**Multi-week strategies (per project):**
+
+| What you want to do | Prompt |
+|---|---|
+| **Plan a multi-week initiative** | `Create a new strategy for X.` |
+| **List strategies for the active project** | `List my strategies.` |
+| **Resume a strategy** | `Continue strategy X.` |
+
+That's the whole vocabulary. Bookmark this section.
 
 ## What each skill does
 
@@ -68,6 +87,48 @@ It:
 - Asks for a short commit message.
 - Pushes to your private fork.
 
+### `new-project`
+
+Stand up a new per-client / per-brand folder under `custom/projects/<slug>/`. Triggered by "create a new project for X," "set up a new client."
+
+It creates the folder structure (`brand/`, `strategies/`, `notes.md`, `project-config.md`, `README.md`, `brand/style-guide.md` starter), optionally chains to project-config-generation if you want the structured 8-field config now, and sets the new project as the active one. ~2 minutes end-to-end.
+
+### `list-projects`
+
+Lists every project under `custom/projects/`. Triggered by "list my projects," "what projects do I have," "show me my clients."
+
+Shows each project's display name, one-line description, number of strategies, last-modified date. Stars the currently active project. Read-only.
+
+### `switch-project`
+
+Sets the active project. Triggered by "switch to project X," "work on X," "set active project to X."
+
+Updates `~/.claude/skills/.omnipresence-active-project` so every downstream project-aware skill sources from the right folder. Handles fuzzy matching when the input doesn't exactly match a folder name. Auto-picks the single project when there's only one and no active is set.
+
+### `project-info`
+
+Surfaces info about the active project. Triggered by "what's in this project," "what's the brand voice," "show me the project config," "show notes."
+
+Routes the question to the right file under `custom/projects/<active>/` and surfaces the contents in plain English. Read-only.
+
+### `new-strategy`
+
+Creates a new multi-week strategy doc under the active project's `strategies/` folder. Triggered by "create a new strategy," "plan an initiative," "build a strategy for X."
+
+Asks 5-7 scoping questions (context, success criteria, time horizon, phases, per-phase steps, autonomy mode, notes), drafts the strategy file with frontmatter + phased checkboxes + decisions log, updates the project README. ~5 minutes for the interview.
+
+### `list-strategies`
+
+Lists strategies for the active project (or all projects on request). Triggered by "list my strategies," "what strategies am I running," "list all strategies across projects."
+
+Shows each strategy's slug, display name, status (in-progress / paused / done), % complete, last-modified. Read-only.
+
+### `continue-strategy`
+
+Resumes a strategy. Triggered by "continue strategy X," "resume strategy X," "what's next on strategy X."
+
+Reads the strategy doc, finds the first unchecked step, executes or assists with it (autonomous or step-by-step per the strategy's settings), checks off the box on completion, appends to the Decisions log if relevant, reports the next pending step. Designed to be called repeatedly across many sessions over weeks.
+
 ## The one rule
 
 **Edit only in `custom/` and `overrides/`. Never edit `core/`.**
@@ -84,6 +145,13 @@ Following this one rule means updates from upstream always merge cleanly. The sk
 getting-started/SKILL.md      The first-time setup flow
 sync-omnipresence/SKILL.md    The pull-updates flow
 push-changes/SKILL.md         The save-and-push flow
+new-project/SKILL.md          Stand up a new per-client project
+list-projects/SKILL.md        Show all projects
+switch-project/SKILL.md       Set the active project
+project-info/SKILL.md         Surface project info (config, brand voice, etc.)
+new-strategy/SKILL.md         Create a multi-week strategy under the active project
+list-strategies/SKILL.md      Show strategies for the active project
+continue-strategy/SKILL.md    Resume a strategy from the next unchecked step
 LICENSE                       MIT (for these skills only)
 README.md                     This file
 ```
