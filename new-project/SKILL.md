@@ -73,12 +73,13 @@ Options: *"Now"* / *"Later"*.
 
 ### Step 6: Create the folder structure
 
+The project folder is **flat** — files live directly at the project root. No `brand/` subfolder; the slug already brands the folder. Only collections (writing-samples/, strategies/, optional prompt-overrides/) nest as subfolders.
+
 Create these directories and files at `<synapse-path>/custom/projects/<slug>/`:
 
 **Directories:**
 - `custom/projects/<slug>/`
-- `custom/projects/<slug>/brand/`
-- `custom/projects/<slug>/brand/writing-samples/` (with `.gitkeep` so git tracks the empty dir)
+- `custom/projects/<slug>/writing-samples/` (with `.gitkeep` so git tracks the empty dir)
 - `custom/projects/<slug>/strategies/` (with `.gitkeep`)
 
 **Files (templates below):**
@@ -97,11 +98,17 @@ Create these directories and files at `<synapse-path>/custom/projects/<slug>/`:
 ## What's in this folder
 
 - `project-config.md` — the 8-field structured config (or TODO if deferred)
-- `brand/` — brand inputs read by content-production skills
-  - `style-guide.md` — writing voice, tone, brand rules
-  - `writing-samples/` — voice samples (add as you accumulate them)
+- `style-guide.md` — writing voice, tone, brand rules
+- `writing-samples/` — voice samples (add as you accumulate them)
 - `strategies/` — multi-day/week implementation plans for this project
 - `notes.md` — operator running log
+
+Optional files (create when you have content for them):
+- `glossary.md` — preferred terminology
+- `banned-phrases.md` — never-say list
+- `editor-rules.md` — editorial constraints
+- `image-style-guide.md` — visual brand
+- `prompt-overrides/` — per-pipeline-stage system prompt overrides
 
 ## Common prompts
 
@@ -111,7 +118,7 @@ Create these directories and files at `<synapse-path>/custom/projects/<slug>/`:
 - `Continue strategy X` — resume a strategy from where you left off
 ```
 
-#### `custom/projects/<slug>/brand/style-guide.md`
+#### `custom/projects/<slug>/style-guide.md`
 
 ```markdown
 # Style Guide — <display_name>
@@ -178,8 +185,8 @@ Tell the user, exactly:
 
 Created:
   • README.md
-  • brand/style-guide.md (starter)
-  • brand/writing-samples/ (empty)
+  • style-guide.md (starter)
+  • writing-samples/ (empty)
   • strategies/ (empty)
   • notes.md
   • project-config.md (<status: ready | deferred>)

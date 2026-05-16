@@ -37,17 +37,20 @@ Look at the user's prompt and route to one of these categories:
 
 Read README.md + count strategies + read recent notes (last 3 lines).
 
+The project folder is **flat** — files live at the project root, only collections (writing-samples/, strategies/, prompt-overrides/) are subfolders.
+
 ```
 Active project: <display_name> (<slug>)
 
 > <one_line_description>
 
 What's here:
-  • brand/style-guide.md     — <line count from style-guide.md or "(starter — fill in)" if matches template>
-  • brand/writing-samples/   — <N> samples
-  • brand/glossary.md        — <exists | not yet>
-  • brand/banned-phrases.md  — <exists | not yet>
-  • brand/editor-rules.md    — <exists | not yet>
+  • style-guide.md           — <line count from style-guide.md or "(starter — fill in)" if matches template>
+  • writing-samples/         — <N> samples
+  • glossary.md              — <exists | not yet>
+  • banned-phrases.md        — <exists | not yet>
+  • editor-rules.md          — <exists | not yet>
+  • image-style-guide.md     — <exists | not yet>
   • project-config.md        — <ready | deferred>
   • strategies/              — <N> strategies (<M> in-progress)
   • notes.md                 — <N> lines
@@ -60,14 +63,14 @@ Want me to surface a specific part? Try:
 
 ### Step 3b: Render STYLE-GUIDE
 
-Read `<synapse-path>/custom/projects/<active-slug>/brand/style-guide.md`. Surface the contents directly, quoted in markdown:
+Read `<synapse-path>/custom/projects/<active-slug>/style-guide.md`. Surface the contents directly, quoted in markdown:
 
 ```
 Brand voice for <display_name>:
 
 <file contents>
 
-(Source: custom/projects/<slug>/brand/style-guide.md)
+(Source: custom/projects/<slug>/style-guide.md)
 ```
 
 If the file is missing or contains the starter template placeholders, tell the user: *"The style guide is still a starter template — it hasn't been filled in. Want me to draft one based on the project config? Say `Update brand voice for <slug>`."*
@@ -80,13 +83,13 @@ If the file shows `status: deferred` in frontmatter, tell the user: *"Project co
 
 ### Step 3d: Render BRAND-FILE (glossary, banned phrases, editor rules)
 
-Map the user's intent to a specific file under `brand/`:
-- glossary → `brand/glossary.md`
-- banned phrases → `brand/banned-phrases.md`
-- editor rules → `brand/editor-rules.md`
-- image style → `brand/image-style-guide.md`
+Map the user's intent to a specific file at the project root (flat — no `brand/` subfolder):
+- glossary → `glossary.md`
+- banned phrases → `banned-phrases.md`
+- editor rules → `editor-rules.md`
+- image style → `image-style-guide.md`
 
-Read and surface. If missing, tell the user: *"There's no `<file>` for this project yet. Create one by adding `custom/projects/<slug>/brand/<filename>.md` (or ask me to draft one)."*
+Read from `<synapse-path>/custom/projects/<active-slug>/<filename>.md` and surface. If missing, tell the user: *"There's no `<file>` for this project yet. Create one by adding `custom/projects/<slug>/<filename>.md` (or ask me to draft one)."*
 
 ### Step 3e: Render NOTES
 
