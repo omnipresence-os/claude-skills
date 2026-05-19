@@ -153,7 +153,9 @@ git log --oneline PRE_SYNC_COMMIT..HEAD
   > 
   > <git log oneline output>
   > 
-  > Your customizations are intact. Your fork at github.com/THEIR-USERNAME/synapse is now up to date with omnipresence-os/synapse."
+  > Your customizations in `custom/`, `overrides/`, and `custom/projects/` are intact. Your fork at github.com/THEIR-USERNAME/synapse is now up to date with omnipresence-os/synapse.
+  >
+  > **Heads up about the hosted MCP:** this sync updated your LOCAL fork. The Omnipresence MCP that serves content to Claude.ai / ChatGPT / Cursor reads from your fork at deploy time, not on every request — it'll pick up these changes on its next deployment refresh (usually within an hour; Omnipresence handles it). Local file reads via Claude Code skills work immediately."
 
 ### Stop here.
 

@@ -67,7 +67,9 @@ Tell the user:
   Folder: custom/projects/<slug>/
   Strategies in progress: <count of strategy files with 'status: in-progress' frontmatter>
 
-Subsequent prompts will source from this project. Useful next prompts:
+Subsequent prompts will source from this project. The active-project slug is also passed to the Omnipresence MCP as `active_project` on lookups — your project's brand voice, style guide, glossary, and strategies surface as Tier-1 results above any methodology / process / skill content.
+
+Useful next prompts:
 
   • Show me what's in this project:    What's in this project?
   • List its strategies:                List strategies for this project.

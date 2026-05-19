@@ -131,13 +131,29 @@ Reads the strategy doc, finds the first unchecked step, executes or assists with
 
 ## The one rule
 
-**Edit only in `custom/` and `overrides/`. Never edit `core/`.**
+**Edit only in `custom/`, `overrides/`, or `custom/projects/`. Never edit `core/`.**
 
 - `core/` is upstream-managed. The sync flow pulls updates there.
-- `custom/` is yours — your own methodologies, processes, skills.
-- `overrides/` is also yours — modified versions of `core/` files, same path. Synapse loads these first.
+- `custom/` is yours — your own methodologies, processes, skills (net-new entries with unique slugs).
+- `overrides/` is also yours — modified versions of `core/` files (same path = replacement).
+- `custom/projects/<slug>/` is per-client info — brand voice, style guides, glossaries, strategies, project config.
 
-Following this one rule means updates from upstream always merge cleanly. The skills enforce the rule too — `push-changes` will refuse to commit `core/` edits and offer to move them to `overrides/`.
+Following this one rule means updates from upstream always merge cleanly. The skills enforce it too — `push-changes` will refuse to commit `core/` edits and offer to move them to `overrides/`.
+
+## How your fork is served back to AI tools (the four-tier model)
+
+Your fork isn't just a local checkout — it's also what the hosted Omnipresence MCP serves to Claude.ai, ChatGPT, Cursor, and any other AI tool with the Omni connector. The MCP layers content in a strict priority order so customization always wins:
+
+1. **Project files** — `custom/projects/<active>/...` for the currently active project. Surfaces only when an `active_project` is set on the lookup call. The Claude Code skills here (`switch-project`, `new-project`, `continue-strategy`, etc.) write the active slug to a local pointer file, and prompt-driven lookups pass it through automatically.
+2. **Custom** — `custom/methodologies/`, `custom/processes/`, `custom/skills/`. Net-new entries with unique slugs that don't shadow `core/`. Loaded additively into the trigger index.
+3. **Overrides** — `overrides/methodologies/`, `overrides/processes/`, `overrides/skills/`. Same path as a `core/` file = replaces it at serving time. The lookup result still reports the canonical slug; only the file body changes.
+4. **Core** — canonical upstream from `omnipresence-os/synapse`. Always the baseline.
+
+Same-relevance entries from a higher tier rank first. So if you write a `custom/methodologies/strategy/my-icp.md` and look up "ICP definition," your custom version surfaces above the core `modern-icp.md` even if both score similarly.
+
+**When does the MCP pick up your changes?** On its next deployment refresh. Each member's MCP is deployed with their fork URL baked in (Omnipresence handles this on its side); when the deployment restarts, it re-clones the fork and re-overlays all four tiers. The `Sync omnipresence` skill keeps your local fork up to date; the MCP refresh is handled by Omnipresence's infrastructure on a separate cadence.
+
+If you ever need to verify what your MCP is serving right now: ask Claude "look up X — and tell me which tier it came from." Lookup results now include a `tier` tag.
 
 ## Files in this repo
 
