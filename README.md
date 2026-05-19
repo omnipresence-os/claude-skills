@@ -140,28 +140,36 @@ Reads the strategy doc, finds the first unchecked step, executes or assists with
 
 Following this one rule means updates from upstream always merge cleanly. The skills enforce it too — `push-changes` will refuse to commit `core/` edits and offer to move them to `overrides/`.
 
-## File-fetch priority (local fork first, MCP when in doubt)
+## File-fetch priority — Claude Code reads local first, MCP serves canonical only
 
-Your fork is the source of truth. Claude Code (and any IDE-embedded agent with filesystem access) resolves methodology, processes, skills, and project info from your **local synapse fork first**, falling through to the hosted Omnipresence MCP only when the local fork doesn't have the answer.
+Two surfaces, two content models:
 
-**The strict priority order:**
+### Claude Code (these skills) — filesystem-first, 4 tiers + MCP fallback
 
-1. **Project files** — `custom/projects/<active>/...` for the currently active project. Per-client info: brand voice, style guide, glossary, banned phrases, strategies. The Claude Code skills here (`switch-project`, `new-project`, `continue-strategy`) write the active slug to `~/.claude/skills/.omnipresence-active-project` so prompts know which project to source from.
+Your local fork is the source of truth. Claude Code resolves methodology / processes / skills / project info from disk in strict priority order:
+
+1. **Project files** — `custom/projects/<active>/...` for the currently active project. Per-client info: brand voice, style guide, glossary, banned phrases, strategies. The skills here (`switch-project`, `new-project`, `continue-strategy`) write the active slug to `~/.claude/skills/.omnipresence-active-project`.
 2. **Custom** — `custom/methodologies/`, `custom/processes/`, `custom/skills/`. Your own additions with unique slugs.
-3. **Overrides** — `overrides/methodologies/`, `overrides/processes/`, `overrides/skills/`. Path-mirrored replacements of core files (same path = replaces it at resolution time).
+3. **Overrides** — `overrides/methodologies/`, `overrides/processes/`, `overrides/skills/`. Path-mirrored replacements of core files (same path = replaces it).
 4. **Core** — `core/...` from upstream `omnipresence-os/synapse`. The baseline.
-5. **MCP (when in doubt)** — the hosted Omnipresence MCP. Used when:
-   - You're on a surface without filesystem access (claude.ai web, ChatGPT, mobile, the OpenClaw container) — there's nothing to read locally; MCP is your only option.
-   - You need fuzzy keyword discovery and don't know which file to read directly. The MCP's `lookup` does cross-corpus matching.
-   - You want to verify your local fork is up to date with upstream.
+5. **MCP (fallback only)** — used when local resolution fails (file not in any tier), for fuzzy keyword discovery across the canonical corpus, or to verify your fork isn't stale.
 
-**Why filesystem first:** local reads are immediate, network-free, and always reflect your most recent push. The MCP refreshes from your fork at deploy time, not per-request — it can lag a freshly-pushed change by minutes or hours. For day-to-day work in Claude Code, your local fork is faster and more current than the MCP.
+Local reads are immediate, network-free, and always reflect your most recent push. Same-relevance entries from a higher tier win — so `custom/methodologies/strategy/my-icp.md` beats the core `modern-icp.md` for queries that match both.
 
-**The hosted MCP still matters** — it's how Claude.ai, ChatGPT, and other non-IDE surfaces get access to your customizations. The MCP serves the same four-tier layered model (project > custom > override > core) when reading from your fork at deploy time. When you push and then later use claude.ai web, the MCP will eventually have your changes (after its next deploy refresh).
+### claude.ai web, ChatGPT, mobile, any tool without a local fork — canonical Omni only
 
-Same-relevance entries from a higher tier rank first regardless of which path resolved them. So if you write a `custom/methodologies/strategy/my-icp.md` and look up "ICP definition," your custom version surfaces above the core `modern-icp.md` — whether the agent read it locally or via MCP.
+These surfaces hit the hosted Omnipresence MCP via the Omni connector. **The MCP serves canonical Omni only** — it does NOT see your fork's `custom/`, `overrides/`, or `custom/projects/`. There is no per-member MCP deployment; one canonical MCP serves all members.
 
-If you ever need to verify which tier resolved a result, ask: "look up X and tell me which tier it came from." Both local-file reads (via the Claude Code skills) and MCP results include the tier.
+What this means:
+
+- **For canonical methodology:** every surface works (Claude Code, claude.ai, ChatGPT, etc.) — they all eventually read from the same canonical content.
+- **For customization:** only Claude Code (or another IDE that can read your local fork) sees your customizations. Your brand voice files, your custom methodology, your project-specific strategies — these flow only through filesystem reads.
+
+If you need customization on claude.ai web, the practical workaround is to paste relevant context into the chat. For real customization, do that work in Claude Code.
+
+### Why this split
+
+Per-member MCP deployments would solve the cross-surface customization problem but add per-member infrastructure cost. The simpler model: canonical MCP for canonical surfaces, filesystem for customization. Keeps the architecture lean and the canonical content trustworthy.
 
 ## Files in this repo
 
