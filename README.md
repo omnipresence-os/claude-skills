@@ -43,6 +43,13 @@ Once installed, these are the prompts you'll use:
 | **List strategies for the active project** | `List my strategies.` |
 | **Resume a strategy** | `Continue strategy X.` |
 
+**Email:**
+
+| What you want to do | Prompt |
+|---|---|
+| **Let Omni email things to you** (works out of the box, no setup) | `Email me a summary.` (any "email me..." phrasing) |
+| **Set up sending from your own brand domain** (so Omni can email clients / prospects) | `Connect my email.` |
+
 That's the whole vocabulary. Bookmark this section.
 
 ## What each skill does
@@ -128,6 +135,18 @@ Shows each strategy's slug, display name, status (in-progress / paused / done), 
 Resumes a strategy. Triggered by "continue strategy X," "resume strategy X," "what's next on strategy X."
 
 Reads the strategy doc, finds the first unchecked step, executes or assists with it (autonomous or step-by-step per the strategy's settings), checks off the box on completion, appends to the Decisions log if relevant, reports the next pending step. Designed to be called repeatedly across many sessions over weeks.
+
+### `connect-email`
+
+The ONE email-deliverability setup flow. Triggered by "connect my email," "set up email sending," "set up Resend," "set up my email," "let Omni email my clients."
+
+Walks you through: Resend account signup (if needed), adding your sending domain, the 3 DNS records at your registrar (Cloudflare, Namecheap, GoDaddy, Squarespace, Route 53 — provider-specific click-paths), domain verification, API key generation, sender identity (brand name + from-address + reply-to), and a test send. After this, prompts like "email this report to client@acme.com" route through your verified domain.
+
+API key saves to `~/.claude/.omni-resend-key` — out of the synapse fork, never git-tracked. Sender identity saves to `custom/email/sender.md` in your fork (git-tracked, syncs across machines via `push my synapse changes`).
+
+~5 minutes of active work plus 5-60 minutes of DNS propagation wait. Idempotent — safe to re-run to update the key or change the sender identity.
+
+**Note:** "Email me X" (to yourself) works out of the box from the moment you complete getting-started — no email setup needed. The catch-all `omni@getomnipresence.com` channel handles that. `connect-email` is only needed for sending to anyone OTHER than yourself.
 
 ## The one rule
 
