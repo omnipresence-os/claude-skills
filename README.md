@@ -49,6 +49,7 @@ Once installed, these are the prompts you'll use:
 |---|---|
 | **Let Omni email things to you** (works out of the box, no setup) | `Email me a summary.` (any "email me..." phrasing) |
 | **Set up sending from your own brand domain** (so Omni can email clients / prospects) | `Connect my email.` |
+| **Remove your Resend setup** (key rotation, cancellation, key exposure) | `Disconnect my email.` |
 
 That's the whole vocabulary. Bookmark this section.
 
@@ -147,6 +148,16 @@ API key saves to `~/.claude/.omni-resend-key` — out of the synapse fork, never
 ~5 minutes of active work plus 5-60 minutes of DNS propagation wait. Idempotent — safe to re-run to update the key or change the sender identity.
 
 **Note:** "Email me X" (to yourself) works out of the box from the moment you complete getting-started — no email setup needed. The catch-all `omni@getomnipresence.com` channel handles that. `connect-email` is only needed for sending to anyone OTHER than yourself.
+
+### `disconnect-email`
+
+The tear-down for `connect-email`. Triggered by "disconnect my email," "remove my Resend setup," "delete my email config."
+
+Removes the Resend API key (`~/.claude/.omni-resend-key`) and the sender identity (`custom/email/sender.md` in your synapse fork). After this, third-party sends route the user back to `connect-email`; system emails to yourself (the catch-all) continue working.
+
+Use this if your API key was exposed, you're switching to a different Resend account, or you're stepping away from member-owned sending entirely. To **rotate** just the key (most common need), re-run `connect-email` instead — it's idempotent and replaces the existing key without needing to disconnect first.
+
+Reminds you to also revoke the key in Resend's dashboard for full server-side cleanup; the local removal alone doesn't invalidate the key on Resend's side.
 
 ## The one rule
 
