@@ -51,6 +51,13 @@ Once installed, these are the prompts you'll use:
 | **Set up sending from your own brand domain** (so Omni can email clients / prospects) | `Connect my email.` |
 | **Remove your Resend setup** (key rotation, cancellation, key exposure) | `Disconnect my email.` |
 
+**Optional API integrations:**
+
+| What you want to do | Prompt |
+|---|---|
+| **Connect DataForSEO** (SERP / keyword / backlink / AIO measurement; required for AIO readiness audits) | `Connect dataforseo.` |
+| **Remove DataForSEO credentials** | `Disconnect dataforseo.` |
+
 That's the whole vocabulary. Bookmark this section.
 
 ## What each skill does
@@ -158,6 +165,22 @@ Removes the Resend API key (`~/.claude/.omni-resend-key`) and the sender identit
 Use this if your API key was exposed, you're switching to a different Resend account, or you're stepping away from member-owned sending entirely. To **rotate** just the key (most common need), re-run `connect-email` instead — it's idempotent and replaces the existing key without needing to disconnect first.
 
 Reminds you to also revoke the key in Resend's dashboard for full server-side cleanup; the local removal alone doesn't invalidate the key on Resend's side.
+
+### `connect-dataforseo`
+
+The ONE DataForSEO credential setup flow. Triggered by "connect dataforseo," "set up dataforseo," "set up SEO data," "wire up dataforseo," "set up AIO measurement."
+
+Walks you through retrieving your DataForSEO API Login + API Password from https://app.dataforseo.com/api-dashboard (the API Password is DIFFERENT from your dashboard login password — common gotcha), saves them locally to `~/.claude/.omni-dataforseo.json`, and validates with a free test call that surfaces your remaining credits balance.
+
+Required if you want to use the AIO readiness audit, lane portfolio audit, or any other Omni skill that needs SEO data and you don't have an Ahrefs API or Semrush API subscription. ~3 minutes end-to-end. Idempotent — safe to re-run to rotate the password.
+
+### `disconnect-dataforseo`
+
+The tear-down for `connect-dataforseo`. Triggered by "disconnect dataforseo," "remove dataforseo credentials," "delete my dataforseo config."
+
+Removes `~/.claude/.omni-dataforseo.json`. After this, any skill that needs DataForSEO data will route you back to `connect-dataforseo`. Other API integrations (Resend, etc.) are untouched.
+
+Use this if your API password was exposed, you're switching to a different DataForSEO account, or you no longer want the integration. To **rotate** just the password (most common need), re-run `connect-dataforseo` instead — it's idempotent. Reminds you to also reset the API password at https://app.dataforseo.com/api-dashboard for full server-side revocation.
 
 ## The one rule
 
