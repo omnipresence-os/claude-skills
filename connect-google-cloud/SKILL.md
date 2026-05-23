@@ -1,6 +1,6 @@
 ---
 name: connect-google-cloud
-description: Walks the user through setting up a Google Cloud service account so Omnipresence can access their Google Search Console, Google Analytics 4, Drive, Docs, Sheets, and other Google APIs — without OAuth's verification gauntlet or weekly re-consent. Trigger when the user says any of "connect google", "connect google cloud", "set up GSC", "set up search console", "connect search console", "connect GA4", "connect google analytics", "connect drive", "connect google drive", "set up google", "wire up google APIs", "set up google service account", "I want omni to access my GSC / GA4 / Drive / Docs / Sheets". This is the ONE canonical Google Cloud credential setup. Recommends service account auth (no expiry, no verification gauntlet, per-resource permissions); explains why OAuth is harder but accommodates users who explicitly insist. Saves the service account JSON key locally to ~/.claude/.omni-google-sa.json (never to the synapse fork, never to our servers). End-to-end ~10 minutes for first-time setup; subsequent additions of a new resource (new GSC property, new Drive folder) take <1 minute since the service account already exists. Idempotent — safe to re-run to add more API access or rotate the key.
+description: Walks the user through setting up Google Cloud credentials so Omnipresence can access their Google Search Console, Google Analytics 4, Drive, Docs, Sheets, and other Google APIs. Trigger when the user says any of "connect google", "connect google cloud", "set up GSC", "set up search console", "connect search console", "connect GA4", "connect google analytics", "connect drive", "connect google drive", "set up google", "wire up google APIs", "set up google service account", "I want omni to access my GSC / GA4 / Drive / Docs / Sheets". This is the ONE canonical Google Cloud credential setup. Two paths supported: service account (recommended when the user has admin rights on the resources — no expiry, no verification gauntlet) and OAuth (fallback for resources where the user is only a granted user, not an admin). Both can coexist. Key file handling is path-based — the user provides the file path to the downloaded JSON, the agent reads from disk and moves into place, key contents never enter the chat transcript. Saves credentials locally to ~/.claude/.omni-google-sa.json (service account) and/or ~/.claude/.omni-google-oauth.json (OAuth refresh token). End-to-end ~10 minutes for first-time SA setup; OAuth fallback adds ~5 minutes for the consent screen + OAuth Playground flow. Idempotent.
 ---
 
 # Connect Google Cloud — One Service Account, All Google APIs
@@ -21,18 +21,15 @@ Only show:
 
 Never show: the JSON file contents, the `private_key` field, terminal commands.
 
-## Why service account (and not OAuth)
+## Two paths, both supported
 
-Before we start, lock this in for the user: **service account is the right path for personal and small-team Omni use.** OAuth sounds simpler but isn't:
+**Default: service account.** When the user has admin rights on the resources Omni needs to access (GSC properties, GA4 properties, Drive folders), service account is the right path: no token expiry, no Google verification process, no weekly re-auth. One JSON key unlocks every API the SA gets shared with.
 
-- **Verification gauntlet** — Google requires app verification for sensitive scopes (GSC, GA4, Drive). Verification is a weeks-long process involving privacy policy, terms of service, security questionnaires, and video demos. Not viable for personal use.
-- **Test-mode 7-day expiry** — unverified OAuth apps refresh-tokens expire after 7 days, forcing re-consent weekly.
-- **Per-user re-auth** — every Omni user has to do the OAuth dance individually; revoking is harder.
-- **Scope changes mean re-auth** — adding GA4 to an existing GSC connection requires another consent flow.
+**Fallback: OAuth.** When the user is a granted user (but not admin) on a resource — e.g., a guest on a client's GSC property — service account can't be added by them. OAuth handles this by using the user's own identity as the auth principal. Same Omni capability, different credential type. Caveats are real but not deal-breakers: token refreshes every 7 days in Testing mode (re-run the OAuth flow), and unverified apps show a "this app isn't verified" warning during OAuth that the user clicks through.
 
-Service account fixes all of this: one JSON key, no expiry, granular per-resource access. The setup is more clicks the first time, but it's a one-time cost.
+The skill picks the path based on what the user actually has access to in Step 5. If they admin everything → SA. If they're a granted user on some resources → OAuth for those. Mixed? Both files coexist, downstream skills check each.
 
-If the user insists on OAuth, fine — say *"I'll do my best, but heads up that you'll need to add yourself as a test user in the OAuth consent screen and re-auth every 7 days, and any sensitive scope requires Google verification. Service account skips all of that. Sure you want OAuth?"* — and if they're still yes, refer them to Google's OAuth documentation. This skill doesn't implement the OAuth path.
+Neither path leaks key contents into the chat: SA uses path-based file handoff (Step 4), OAuth uses OAuth Playground + a refresh token paste (a refresh token is opaque and rotatable; it's a reasonable thing to paste).
 
 ## What this skill does — execute these steps in order
 
@@ -110,33 +107,68 @@ Then:
 
 Wait for the email. Validate it ends with `.iam.gserviceaccount.com`. If not, ask them to re-copy from the GCP console. Store as `<sa-email>`.
 
-### Step 4: Generate the JSON key
+### Step 4: Generate the JSON key (path-based — key contents stay off the chat)
 
 > *"Now generate a JSON key for that service account. Open https://console.cloud.google.com/iam-admin/serviceaccounts?project=<project-id>, click the SA you just created, go to the **Keys** tab, click **Add Key → Create new key**, pick **JSON**, click **Create**.*
 >
-> *A JSON file will download automatically. Don't open it — it contains a private key.*
+> *A JSON file will download automatically — usually to your Downloads folder. **Don't open it. Don't paste its contents.** It contains a private key, and pasting it into chat would leak the key into the conversation transcript.*
 >
-> *Paste the ENTIRE contents of that file here (open with a plain-text editor if needed and select-all → copy → paste). It's a JSON object starting with `{` and ending with `}` — many lines."*
+> *Instead, give me the FILE PATH to the downloaded file. The path is safe — it's just `C:\Users\You\Downloads\filename.json` (Windows) or `/Users/you/Downloads/filename.json` (Mac), no secrets in it.*
+>
+> *Easiest ways to get the path:*
+> *- **Windows:** in File Explorer, find the file in Downloads, right-click → 'Copy as path'. Paste the result here. (It'll be wrapped in quotes — that's fine, I'll strip them.)*
+> *- **Mac:** in Finder, find the file, right-click → hold Option → click 'Copy "<filename>" as Pathname'. Paste here.*
+> *- **Linux:** the file is at `~/Downloads/<filename>.json` — type that.*
+>
+> *Paste the path here."*
 
-Wait for the user to paste the full JSON.
+Wait for the user to paste the path.
 
 When they paste it:
 
-1. Parse it. Validate that it has the required fields: `type: "service_account"`, `project_id`, `private_key`, `client_email`, `client_id`.
-2. If any field is missing or `type` is not `"service_account"`, tell them: *"That doesn't look like a valid service account JSON. Re-download from the Keys tab and try again."* Don't proceed.
-3. **Silently** save the JSON content to `~/.claude/.omni-google-sa.json` (Mac/Linux) or `%USERPROFILE%\.claude\.omni-google-sa.json` (Windows). On Mac/Linux, set file permissions to `600` (owner-only read/write).
-4. Tell them (without quoting the JSON back): *"Saved locally to your machine — never sent to our servers, never committed to git. If you ever paste a chat transcript that includes this JSON, generate a new key at the Keys tab and re-run this skill to replace it. (The old key can be deleted from the Keys tab too.)"*
-5. Also tell them: *"If you ever want to revoke Omni's access to all your Google resources at once, delete this service account in the Google Cloud console — that invalidates the key globally."*
+1. Strip surrounding quotes (Windows "Copy as path" wraps in `"`).
+2. **Read the file FROM DISK at that path** (do not ask the user to paste contents). Use whatever filesystem-read mechanism is available in the current agent harness — `Read` tool, `cat`, Node `fs.readFileSync`, etc.
+3. Parse the JSON. Validate that it has: `type: "service_account"`, `project_id`, `private_key`, `client_email`, `client_id`.
+4. If any field is missing or `type` is not `"service_account"`, tell them: *"That file doesn't look like a valid service account JSON. The download from the Keys tab should be a JSON file starting with `{` and including a `private_key` field. Make sure you gave me the path to the right file (the one Google just downloaded) and try again."* Don't proceed.
+5. **MOVE the file** to `~/.claude/.omni-google-sa.json` (Mac/Linux) or `%USERPROFILE%\.claude\.omni-google-sa.json` (Windows). Use a true move (rename if same volume, copy-then-delete otherwise) — the original file shouldn't sit in Downloads where the user might accidentally email it or commit it later.
+6. On Mac/Linux, `chmod 600` the new file (owner-only read/write). Windows inherits user-profile permissions, which are owner-only by default.
+7. Tell the user: *"Saved to `~/.claude/.omni-google-sa.json` and the original in your Downloads folder is gone. The key never entered this chat — it went straight from disk to disk. If you ever want to revoke Omni's access to all your Google resources at once, delete this service account in the Google Cloud console — that invalidates the key globally."*
+
+**Fallback if filesystem read fails** (rare — the agent harness doesn't support file reads, or the path doesn't resolve): tell the user: *"I can't read the file at that path — either the path is wrong or my agent harness can't access local files. If the path looks right but it still fails, paste the path again with forward slashes, or as a last resort paste the file contents (acknowledged tradeoff: key will be in chat history; rotate the key after via the Keys tab in GCP)."* This branch ONLY applies if path-based reading genuinely doesn't work — don't suggest paste-contents as the default.
 
 ### Step 5: Grant the service account access to each resource
 
 This is the per-service permission step. The SA email is the value the user pastes into Google's "Share with" / "Add user" dialogs throughout the Google Cloud UI.
 
+**Important caveat before proceeding:** sharing a resource with the SA requires admin / owner permission on that resource. Specifically:
+
+- **GSC property** — you need "Owner" role (or "Full" user role with permission-management rights)
+- **GA4 property** — you need "Administrator" role
+- **Drive folder / Doc / Sheet** — you need "Editor" or "Owner" sharing rights
+
+If the user is themselves a non-admin user on a resource (e.g., a guest user on a client's GSC property), they CAN'T add the SA to that resource. That's not a failure mode — it's a different auth model: **OAuth (via the user's own identity) is the right path for resources where the user isn't an admin.** Same Omni capability, different credentials.
+
+Ask the user upfront:
+
+> *"For each resource you want Omni to access, are you the admin / owner — or just a granted user? Pick whichever applies:*
+>
+> *(a) I'm the admin on all the resources I want Omni to access. → Service account, the path we're on.*
+> *(b) I'm a non-admin user on some / all resources (e.g., I have access to a client's GSC property but I'm not the owner). → OAuth, the user-identity path. Service account doesn't work without admin rights to add the SA.*
+> *(c) Mixed — admin on some, not on others. → Set up both. SA handles the ones you admin; OAuth handles the rest. Both can coexist."*
+
+Wait for the answer.
+
+- **If (a):** continue below with the SA-grant steps. Skip Step 7.
+- **If (b):** skip ahead to Step 7 (OAuth fallback). You can leave the SA setup we just did in place — it's harmless if unused, and useful later if you ever get admin rights.
+- **If (c):** continue below with SA-grant steps for the resources they admin, THEN do Step 7 (OAuth) for the rest.
+
+#### Service account permission grant — for resources the user admins
+
 Surface the SA email prominently:
 
 > *"This is the email you need to share each resource with: `<sa-email>`. Copy it now; you'll paste it into a few places.*
 >
-> *For each Google service you enabled, here's how to grant access:"*
+> *For each Google service you enabled and have admin rights on, here's how to grant access:"*
 
 Then walk through ONLY the services they enabled in Step 2:
 
@@ -195,22 +227,125 @@ Pick the simplest API the user has enabled and run a test call.
 
 **If the test fails with `400 / 404 with API-not-enabled error`:** *"That API isn't enabled in the GCP project yet. Re-do Step 2 for `<service>`."*
 
+### Step 7: OAuth fallback (only if Step 5 selected (b) or (c))
+
+This step sets up OAuth credentials for resources the user can't admin with a service account. After this, the user has TWO credential files: `~/.claude/.omni-google-sa.json` (for admin'd resources) and `~/.claude/.omni-google-oauth.json` (for resources they only have user access on). Downstream Omni skills check both.
+
+Walk through it directly, no preamble — the user is here because SA doesn't fit, that's fine.
+
+#### Step 7.1: Configure the OAuth consent screen
+
+> *"Open https://console.cloud.google.com/apis/credentials/consent?project=<project-id>.*
+>
+> *Pick **External** for user type (the only option for personal Google accounts). Click **Create**.*
+>
+> *On the App information page, fill in:*
+> *- **App name**: `Omnipresence` (or any name)*
+> *- **User support email**: your own Google email*
+> *- **Developer contact**: your own Google email*
+>
+> *Skip the App logo, App domain, etc. — they're for verification, which we're not pursuing. Click **Save and Continue**.*
+>
+> *On the Scopes page, click **Save and Continue** without adding anything (we'll request scopes at OAuth time).*
+>
+> *On the Test users page, click **+ Add Users**, type the Google email you'll be signing in with (the account that has access to the GSC / GA4 / Drive resources). Click **Save and Continue**.*
+>
+> *Tell me when you're back at the summary page."*
+
+Wait for confirmation.
+
+> *"One important note before we continue: the app is now in **Testing** mode. That means OAuth tokens generated against it expire after 7 days unless you submit the app for Google verification (a multi-week process). For personal use, just re-run this OAuth flow every ~7 days when the token expires. Acknowledged tradeoff vs service account — but it's what works when you don't have admin access."*
+
+#### Step 7.2: Create the OAuth client ID
+
+> *"Open https://console.cloud.google.com/apis/credentials?project=<project-id>. Click **+ Create Credentials** → **OAuth client ID**.*
+>
+> *Pick **Desktop app** for application type. Name it `Omnipresence OAuth Client`. Click **Create**.*
+>
+> *Google shows you a Client ID and Client Secret in a dialog. Click **Download JSON** — that downloads the client config file. Don't paste contents into chat — give me the FILE PATH like in Step 4 (right-click → Copy as path on Windows, Option-Copy as Pathname on Mac)."*
+
+Wait for the path. Read the file from disk (same mechanism as Step 4). Validate it has `installed.client_id` and `installed.client_secret`. Extract those two values; keep them in agent memory for the next sub-step. Don't save anywhere yet.
+
+#### Step 7.3: Mint the refresh token via OAuth Playground
+
+OAuth Playground is the simplest clickable way to get a refresh token without writing any code or running gcloud locally.
+
+> *"Open https://developers.google.com/oauthplayground/ in a new tab.*
+>
+> *1. Click the **gear icon** (top right) → check **Use your own OAuth credentials** → paste your Client ID and Client Secret into the fields (I'll show them in a moment if you want to copy them from here, but easier: open the JSON you just downloaded and copy from there). Close the gear panel.*
+>
+> *2. On the LEFT panel, scroll to find the API scopes for what you need. Check the boxes for:*"
+
+Then list the scopes the user needs based on which APIs they enabled in Step 2:
+
+| API enabled | Scope to check in OAuth Playground |
+|---|---|
+| Search Console | `https://www.googleapis.com/auth/webmasters.readonly` |
+| Analytics 4 | `https://www.googleapis.com/auth/analytics.readonly` |
+| Drive (read-only) | `https://www.googleapis.com/auth/drive.readonly` |
+| Drive (read + write) | `https://www.googleapis.com/auth/drive` |
+| Docs | `https://www.googleapis.com/auth/documents` |
+| Sheets | `https://www.googleapis.com/auth/spreadsheets` |
+
+> *"3. Click **Authorize APIs** (blue button under the scope list).*
+>
+> *4. A Google sign-in popup opens. Sign in with the Google account you added as a test user in Step 7.1. You may see a warning page (`This app isn't verified`) — click **Advanced** → **Go to Omnipresence (unsafe)**. That warning is normal for unverified apps in Testing mode; it just means Google hasn't reviewed it.*
+>
+> *5. Review the scopes Google shows you. Click **Continue** / **Allow**.*
+>
+> *6. You're redirected back to OAuth Playground with an Authorization code. Click **Exchange authorization code for tokens** (button on the left, under Step 2).*
+>
+> *7. On the right pane, you'll now see a **Refresh token** and an **Access token**. Copy the **Refresh token** value (long string, not the access token).*
+>
+> *8. Paste the refresh token here."*
+
+Wait for the refresh token. Validate it looks like a refresh token (starts with `1//` typically, base64-ish, > 50 chars).
+
+#### Step 7.4: Save the OAuth credentials
+
+**Silently** write `~/.claude/.omni-google-oauth.json` with this shape:
+
+```json
+{
+  "client_id": "<from step 7.2>",
+  "client_secret": "<from step 7.2>",
+  "refresh_token": "<from step 7.3>",
+  "scopes": ["<list of scopes the user checked in 7.3>"]
+}
+```
+
+On Mac/Linux, `chmod 600`.
+
+Tell the user: *"Saved. Omni now has OAuth credentials at `~/.claude/.omni-google-oauth.json`. For any GSC property, GA4 property, or Drive folder you can access (whether you're admin or not), Omni can read it using these credentials. Reminder: this token will expire in ~7 days because the app is in Testing mode — when that happens, just re-run this OAuth flow (Step 7.3 + 7.4). You don't need to redo 7.1 or 7.2 unless you create a new GCP project."*
+
+#### Step 7.5: Test the OAuth path
+
+Run the same test call pattern as Step 6, but use the OAuth credentials instead of the SA. Expected: same success behavior.
+
+If the test fails, the most common cause is the user not having access to the property they tested against. Different from the SA failure mode (which would be "SA not added"). OAuth failures are usually "user not on property" or "scope not granted at OAuth time."
+
 ### Stop here.
 
-Do not propose other skills. Do not suggest additional setup. The user has working Google Cloud credentials; they're done.
+Do not propose other skills. Do not suggest additional setup. The user has working Google Cloud credentials (SA, OAuth, or both); they're done.
 
 ## What this skill MUST NOT do
 
-- Do NOT save the service account JSON anywhere git-tracked (synapse fork, project files, shell config). It ONLY lives in `~/.claude/.omni-google-sa.json`.
-- Do NOT echo the JSON contents, the `private_key` field, or any sensitive part of the key in any chat output, log, or written file.
+- Do NOT save any credential file anywhere git-tracked (synapse fork, project files, shell config). SA lives ONLY in `~/.claude/.omni-google-sa.json`; OAuth lives ONLY in `~/.claude/.omni-google-oauth.json`.
+- Do NOT ask the user to paste the service account JSON contents into chat. The path-based handoff in Step 4 is the canonical path. Only fall back to paste-contents if file reading literally doesn't work in the current agent harness — and explicitly warn before doing so.
+- Do NOT echo the JSON contents, the `private_key` field, the OAuth `client_secret`, or any sensitive part of the credentials in any chat output, log, or written file. (Refresh tokens are exception-OK to display momentarily during Step 7.3 since the user just minted one and is about to paste it back — but don't store them in chat-visible state.)
 - Do NOT proxy the credentials through Omnipresence's servers. They never leave the user's machine.
-- Do NOT implement the OAuth path. If the user insists on OAuth despite the warnings, refer them to Google's OAuth docs — this skill is service-account-only.
-- Do NOT skip Step 5 for any service the user enabled. Service account creation + key download alone gets you nothing without the per-resource permission grants.
-- Do NOT skip the test send in Step 6 unless the user explicitly says "I trust it." A failing test surfaces config issues before they're discovered mid-real-work.
-- Do NOT proceed past Step 4 if the pasted JSON fails the format validation.
+- Do NOT skip Step 5's admin/OAuth branching question. Service account creation + key download alone gets nothing useful if the user can't grant access to the resources.
+- Do NOT treat OAuth as a worse option in the user-facing flow. It's a different tool for a different situation (no admin access). Surface the 7-day token expiry as a fact, not as a complaint.
+- Do NOT skip the test in Step 6 (for SA) or Step 7.5 (for OAuth) unless the user explicitly says "I trust it." A failing test surfaces config issues before they're discovered mid-real-work.
+- Do NOT proceed past Step 4 if the read-from-disk JSON fails the format validation.
 
-## Why ~/.claude/.omni-google-sa.json (not env vars or settings.json)
+## Why ~/.claude/.omni-google-*.json (not env vars or settings.json)
 
 Same rationale as the other Omnipresence credentials — see `omnipresence-os/docs/credential-integrations.md` for the canonical reasoning. Tool-agnostic file location, simple to inspect/rotate, never in git, easy to enumerate with `ls ~/.claude/.omni-*`.
 
-This single file unlocks every Google API the SA has been granted access to — there's no separate "GSC key" vs "Drive key." One credential, many resources.
+Two credential files, one or both may be present:
+
+- `~/.claude/.omni-google-sa.json` — service account JSON. Unlocks every Google API the SA has been granted access to. Use when the user has admin rights on the target resources.
+- `~/.claude/.omni-google-oauth.json` — OAuth client + refresh token. Unlocks every Google API the user has access to as a person. Use when the user is a granted user but not an admin.
+
+Downstream Omni skills (gsc-connection, future ga4-connection, etc.) check both. SA takes precedence for resources the SA has been granted; OAuth fills the gap for the rest.
