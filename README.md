@@ -57,6 +57,8 @@ Once installed, these are the prompts you'll use:
 |---|---|
 | **Connect DataForSEO** (SERP / keyword / backlink / AIO measurement; required for AIO readiness audits) | `Connect dataforseo.` |
 | **Remove DataForSEO credentials** | `Disconnect dataforseo.` |
+| **Connect Google Cloud** (one service account unlocks GSC, GA4, Drive, Docs, Sheets — no OAuth) | `Connect google cloud.` |
+| **Remove Google Cloud credentials** | `Disconnect google cloud.` |
 
 That's the whole vocabulary. Bookmark this section.
 
@@ -181,6 +183,26 @@ The tear-down for `connect-dataforseo`. Triggered by "disconnect dataforseo," "r
 Removes `~/.claude/.omni-dataforseo.json`. After this, any skill that needs DataForSEO data will route you back to `connect-dataforseo`. Other API integrations (Resend, etc.) are untouched.
 
 Use this if your API password was exposed, you're switching to a different DataForSEO account, or you no longer want the integration. To **rotate** just the password (most common need), re-run `connect-dataforseo` instead — it's idempotent. Reminds you to also reset the API password at https://app.dataforseo.com/api-dashboard for full server-side revocation.
+
+### `connect-google-cloud`
+
+The ONE Google Cloud credential setup flow. Triggered by "connect google," "connect google cloud," "set up GSC," "set up search console," "connect GA4," "connect drive," "set up google service account."
+
+Walks you through Google Cloud project creation (if needed), enabling the APIs you actually want (GSC, GA4, Drive, Docs, Sheets — pick any), creating a service account, generating a JSON key, sharing that service account's email with each resource you want Omni to access (one click per GSC property / Drive folder / GA4 property), and a test call to confirm it all works.
+
+Saves the service account JSON to `~/.claude/.omni-google-sa.json`. ONE key unlocks every Google API you've enabled — there's no separate "GSC key" vs "Drive key." When you want Omni to access a new GSC property or Drive folder later, you just share that resource with the service account's email; no new credentials needed.
+
+**Service account, not OAuth, by design.** Google's OAuth flow requires app verification for sensitive scopes (GSC, GA4, Drive) — a weeks-long process. Unverified OAuth apps cap test users at 100 and force re-consent every 7 days. The `Access blocked: Omni GSC Reader has not completed the Google verification process` error you might've seen is what unverified-OAuth gets you. Service account skips all of it.
+
+~10 minutes end-to-end for first-time setup. Adding a new resource later (a different GSC property, a new Drive folder) takes about 30 seconds. Idempotent — safe to re-run to add more APIs or rotate the key.
+
+### `disconnect-google-cloud`
+
+The tear-down for `connect-google-cloud`. Triggered by "disconnect google," "remove google credentials," "delete google service account."
+
+Removes `~/.claude/.omni-google-sa.json`. After this, Omni can no longer access ANY Google service (GSC, GA4, Drive, Docs, Sheets) until you re-run `connect google cloud`. Other API integrations (Resend, DataForSEO) are untouched.
+
+Reminds you that local removal does NOT revoke the key globally — to fully invalidate, also delete the key (or the entire service account) at https://console.cloud.google.com/iam-admin/serviceaccounts. To rotate the key, re-run `connect-google-cloud` instead — it's idempotent.
 
 ## The one rule
 
