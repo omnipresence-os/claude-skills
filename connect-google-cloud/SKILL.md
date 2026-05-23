@@ -192,17 +192,79 @@ Then walk through ONLY the services they enabled in Step 2:
 >
 > *Tell me when done."*
 
-**Google Drive:**
-> *"For each Drive folder Omni should access:*
-> *1. Open https://drive.google.com*
-> *2. Right-click the folder → Share*
-> *3. Email: `<sa-email>` · Role: **Viewer**, **Commenter**, or **Editor** depending on what you want Omni to do*
-> *4. Click Send (you can uncheck 'Notify people' — the SA is a bot, it doesn't have an inbox)*
+**Google Drive — pick a scoping approach first:**
+
+> *"For Drive access, two options. Pick whichever fits your workflow:*
 >
-> *Same pattern for individual files. Tell me when done."*
+> *(a) **Catch-all 'Omnipresence' folder.** Create a single folder in My Drive called `Omnipresence` (or any name), share THAT one folder with the SA, then drop anything you want Omni to access inside it. Simplest to manage — one share, one URL to track. Best when starting fresh.*
+>
+> *(b) **Specific existing folders.** Share each folder you want Omni to access individually. More clicks upfront, but no reorganization needed if your existing Drive structure works.*
+>
+> *Which approach? (a/b)"*
+
+Wait for the answer.
+
+**Critical bit either way: Omni needs the folder URL(s).** Sharing alone isn't enough — Drive doesn't auto-tell the SA "here's what you can see now." Omni has to be told WHERE to look. Always capture the URL after sharing and save it (see below).
+
+**If (a) — catch-all folder:**
+
+> *"In https://drive.google.com, click **+ New → Folder**, name it `Omnipresence`, click Create.*
+>
+> *Right-click the new folder → **Share**. Email: `<sa-email>`. Role: **Editor** (recommended — lets Omni create new files inside; can downgrade to Viewer later if you want). Uncheck 'Notify people' (the SA has no inbox). Click **Share**.*
+>
+> *Then open the folder and copy its URL from the address bar — it looks like `https://drive.google.com/drive/folders/abc123XYZ...`. Paste that URL here so I can save it."*
+
+**If (b) — specific folders:**
+
+> *"For EACH folder you want Omni to access:*
+> *1. Open https://drive.google.com*
+> *2. Right-click the folder → **Share***
+> *3. Email: `<sa-email>` · Role: **Viewer** / **Commenter** / **Editor** depending on what you want Omni to do*
+> *4. Uncheck 'Notify people'. Click **Share**.*
+> *5. Open the folder and copy its URL from the address bar. Paste that URL here (one per line if you're doing several at once).*
+>
+> *Tell me when you've shared + collected all the URLs you want set up."*
+
+Wait for the URLs.
+
+**For both (a) and (b): save the URLs to a persistent file** at `<synapse-fork>/custom/google/drive-access.md` so Omni knows which folders to query on future sessions (without making the user re-state every time).
+
+File shape:
+
+```yaml
+---
+shared_folders:
+  - name: "Omnipresence Hub"
+    url: "https://drive.google.com/drive/folders/abc123..."
+    folder_id: "abc123..."  # extract from the URL path segment after /folders/
+    purpose: "Catch-all for everything Omni needs"
+    shared_role: "editor"
+  - name: "Q3 Content Briefs"
+    url: "https://drive.google.com/drive/folders/xyz789..."
+    folder_id: "xyz789..."
+    purpose: "Q3 content sprint"
+    shared_role: "viewer"
+---
+
+# Google Drive folders shared with Omnipresence
+
+This file lists Drive folders/files shared with the Omnipresence service
+account (see ~/.claude/.omni-google-sa.json for the SA email). Omni reads
+this file when it needs to know which folders to query.
+
+To add more folders: share them with the SA at drive.google.com, then add
+an entry to `shared_folders` above with the folder URL. Re-run
+`connect google cloud` if you want guided help.
+```
+
+The `name` and `purpose` fields can come from the user (ask conversationally) or be auto-filled from the folder name in Drive's URL response if you have an active session. Don't block on getting them — `name: "Folder shared on YYYY-MM-DD"` is a fine default.
+
+Tell the user: *"Saved to `custom/google/drive-access.md` in your synapse fork. Omni will look here automatically when you ask for anything in Drive. To add more folders later, you can either re-run `connect google cloud` for guided help or edit that file directly."*
 
 **Google Docs / Sheets:**
-> *"Same as Drive — open the Doc or Sheet, click Share, add the SA email with the role you want. (Anything you've already shared a parent Drive folder with is auto-shared too.) Tell me when done."*
+> *"Same as Drive — open the Doc or Sheet, click Share, add the SA email with the role you want. Anything you've already shared a parent Drive folder with is auto-shared too (Google inherits permissions). For one-off Docs/Sheets outside your shared folders, paste the URL here and I'll add it to your drive-access.md so Omni knows about it.*
+>
+> *Tell me when done."*
 
 Wait for confirmation on each.
 
