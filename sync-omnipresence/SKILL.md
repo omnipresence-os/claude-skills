@@ -1,11 +1,16 @@
 ---
 name: sync-omnipresence
-description: Pulls the latest methodology updates from omnipresence-os/synapse upstream into the user's local synapse fork and pushes the merge to their GitHub. Trigger when the user says any of "sync omnipresence", "update synapse", "pull latest", "get omnipresence updates", "update omni", "what's new in synapse", "refresh my synapse". This is the ONE canonical update flow. Safely stashes any uncommitted member work before fetching, handles merge conflicts by surfacing the core/-edit rule violation clearly, and reports what changed since the last sync. Idempotent.
+description: Updates both halves of an Omnipresence install — the methodology corpus (omnipresence-os/synapse upstream → user's fork) and the prompt-driven Claude Code skill set (omnipresence-os/claude-skills → ~/.claude/skills). Trigger when the user says any of "sync omnipresence", "update synapse", "pull latest", "get omnipresence updates", "update omni", "what's new in synapse", "refresh my synapse", "update my skills", "pull latest skills". This is the ONE canonical update flow for both. Safely stashes any uncommitted member work before fetching, handles merge conflicts on the fork by surfacing the core/-edit rule violation clearly, fast-forwards the skills install in place, and reports what changed across both. Idempotent. Tells the member to restart Claude Code if any new Claude Code skills landed (Claude Code discovers skills at process start, not per-session).
 ---
 
 # Sync Omnipresence — Pull Upstream Updates
 
-This skill pulls the latest methodology, processes, and skills from `omnipresence-os/synapse` into the member's local clone and pushes the merge to their GitHub fork. ONE canonical flow. No alternatives.
+This skill updates BOTH halves of an Omnipresence install:
+
+1. **Methodology corpus** — `omnipresence-os/synapse` upstream → the member's local synapse fork → their GitHub. Pulls new beliefs, processes, executor skills.
+2. **Prompt-driven Claude Code skills** — `omnipresence-os/claude-skills` → `~/.claude/skills/`. Pulls new "Claude Code commands" like `connect-google-cloud`, `new-project`, etc.
+
+ONE canonical flow. No alternatives.
 
 ## How to talk to the user during this skill
 
@@ -141,21 +146,76 @@ git stash pop
 
 - **If `git stash pop` reports conflicts** (rare — only if a stashed change collides with an upstream change), tell the user: "Your stashed work conflicts with the upstream update. I've left the stash in place — run `git stash list` to see it, or email jonathan@getomnipresence.com for help." STOP.
 
-### Step 9: Report what changed
+### Step 9: Refresh the Claude Code skills install
+
+The synapse fork holds methodology + processes + executor skills. Separately, `~/.claude/skills/` holds the prompt-driven Claude Code skills — `connect-google-cloud`, `new-project`, `sync-omnipresence` itself, etc. Different repo (`omnipresence-os/claude-skills`); doesn't get touched by the synapse fork sync above. This step keeps it current too.
+
+**Verify the install is a git clone of claude-skills:**
 
 ```
-git log --oneline PRE_SYNC_COMMIT..HEAD
+cd ~/.claude/skills    # or %USERPROFILE%\.claude\skills on Windows
+git remote get-url origin
 ```
 
-- **If the output is empty** (no new commits), tell the user: "Already up to date — no new methodology since your last sync."
-- **Otherwise**, summarize:
-  > "Synced. <N> new commits from upstream:
-  > 
-  > <git log oneline output>
-  > 
-  > Your customizations in `custom/`, `overrides/`, and `custom/projects/` are intact. Your local fork at github.com/THEIR-USERNAME/synapse is now up to date with omnipresence-os/synapse.
-  >
-  > **What this affects:** Claude Code reads your local fork directly, so the new upstream methodology is available to your prompts immediately. Note: the hosted Omnipresence MCP (used by claude.ai web, ChatGPT, mobile) serves canonical content only and doesn't see your fork — customizations live in Claude Code only."
+- **If origin = `https://github.com/omnipresence-os/claude-skills.git` (or git@ form):** it's a clone — proceed.
+- **If `git remote get-url origin` fails or returns something else:** the install was done with an older copy-files method that can't be auto-updated. Tell the user:
+  > "Your Claude Code skills were installed in a way that can't be auto-updated to pick up new prompts. To fix it: paste `Install the Omnipresence skills from github.com/omnipresence-os/claude-skills into my ~/.claude/skills directory` — that'll set up a clone, after which future syncs will keep them current automatically. Run that first, then re-run sync."
+  
+  Skip the rest of this step and continue to Step 10 with `SKILLS_UPDATED = false`.
+
+**Capture pre-pull state for diffing:**
+
+```
+cd ~/.claude/skills
+PRE_SKILLS_COMMIT=$(git rev-parse HEAD)
+PRE_SKILLS_FOLDERS=$(find . -maxdepth 1 -type d -not -name '.*' | sort)
+```
+
+**Pull latest with fast-forward only:**
+
+```
+git pull origin main --ff-only
+```
+
+- **If pull fails with non-fast-forward error** (rare — only if someone committed locally to `~/.claude/skills/`): tell the user *"Your Claude Code skills folder has local edits, which is unusual — usually skills are read-only on the member side. Skipping the skills update for safety. If this happens repeatedly, email jonathan@getomnipresence.com."* and continue to Step 10 with `SKILLS_UPDATED = false`.
+- **If pull succeeds:** continue.
+
+**Diff the new skill folders:**
+
+```
+POST_SKILLS_FOLDERS=$(find . -maxdepth 1 -type d -not -name '.*' | sort)
+NEW_SKILLS=$(comm -13 <(echo "$PRE_SKILLS_FOLDERS") <(echo "$POST_SKILLS_FOLDERS"))
+POST_SKILLS_COMMIT=$(git rev-parse HEAD)
+```
+
+Save `NEW_SKILLS` (list of new skill folder names) and whether the commit advanced (`PRE_SKILLS_COMMIT != POST_SKILLS_COMMIT`) for Step 10's combined report.
+
+### Step 10: Report what changed (both halves)
+
+```
+git -C <synapse-path> log --oneline PRE_SYNC_COMMIT..HEAD
+```
+
+Assemble a single combined report:
+
+**If nothing changed in either** (synapse no new commits AND skills already current):
+> "Already up to date — no new methodology, no new Claude Code skills since your last sync."
+
+**Otherwise:**
+> "Synced.
+>
+> **Methodology (synapse fork):** <N> new commits from upstream:
+> 
+> <git log oneline output, or 'no changes' if empty>
+> 
+> **Claude Code skills:** <one of the following>
+> - *No new skills landed.* (if synapse advanced but skills didn't)
+> - *<N> new skill(s) landed: <comma-separated list from NEW_SKILLS>. Restart Claude Code (full app restart, not a new chat) so they get discovered.* (if NEW_SKILLS non-empty)
+> - *Existing skills updated, no new ones. No restart needed.* (if skills commit advanced but no new folders)
+>
+> Your customizations in `custom/`, `overrides/`, and `custom/projects/` are intact. Your local fork at github.com/THEIR-USERNAME/synapse is now up to date with omnipresence-os/synapse.
+>
+> **What this affects:** Claude Code reads your local fork directly, so the new upstream methodology is available to your prompts immediately. New Claude Code skills require an app restart to be discoverable. Note: the hosted Omnipresence MCP (used by claude.ai web, ChatGPT, mobile) serves canonical content only and doesn't see your fork — customizations live in Claude Code only."
 
 ### Stop here.
 
@@ -169,3 +229,5 @@ Do not propose next steps. Do not suggest running anything else. The user got an
 - Do NOT skip the stash step — uncommitted member work must be preserved.
 - Do NOT propose alternative sync strategies (rebase instead of merge, cherry-pick, etc.). One method.
 - Do NOT proceed if the rule-violation recovery is declined; abort cleanly and let the user message Jonathan.
+- Do NOT use a non-`--ff-only` pull on `~/.claude/skills/` — that directory is supposed to be read-only on the member side; if it has divergent commits something is off, surface it rather than auto-merging.
+- Do NOT silently skip the claude-skills refresh — always report whether it happened and what landed, even if "nothing changed" or "install method can't be auto-updated."
