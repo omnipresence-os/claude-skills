@@ -13,9 +13,15 @@ Plain English. Show progress markers. Don't show shell commands or raw markdown 
 
 ## Execute these steps
 
-### Step 1: Resolve active project + target strategy
+### Step 1: Resolve active project + target strategy (via project-resolver)
 
-Read `~/.claude/skills/.omnipresence-active-project`. If missing, ask which project. Resolve `<active-slug>`.
+Follow the [project-resolver](../project-resolver/SKILL.md) protocol: chat-session marker first, then global default. Resolve `<active-slug>`. If resolver returns "none", ask which project, then emit `[OMNI_SESSION_ACTIVE = <slug>]` so subsequent calls in this chat use it.
+
+**In the output's first line, surface the resolved project + source:**
+
+```
+Continuing strategy <strategy-name> for project=<slug> (resolved from <chat-session | global-default>).
+```
 
 From the user's prompt, extract the target strategy slug:
 - "Continue strategy q3-content-pivot" → `q3-content-pivot`

@@ -13,14 +13,21 @@ Plain English. ONE question at a time. Wait for each answer before asking the ne
 
 ## Execute these steps
 
-### Step 1: Resolve active project
+### Step 1: Resolve active project (via project-resolver)
 
-Read `~/.claude/skills/.omnipresence-active-project`.
+Follow the [project-resolver](../project-resolver/SKILL.md) protocol: chat-session marker first, then global default.
 
-- **If missing** AND `<synapse-path>/custom/projects/` has exactly one folder: auto-pick it.
-- **If missing** AND zero projects: tell the user: *"You need a project before creating a strategy. Run `Create a new project for X` first."* STOP.
-- **If missing** AND multiple projects: ask *"Which project is this strategy for? Your options: <list>."* — wait for response, save selection as active.
-- **If present:** verify the folder exists. If not, clear the file and treat as zero-project case.
+- **If resolver returns a project AND the folder exists:** use it. Continue to Step 2.
+- **If resolver returns "none" AND `<synapse-path>/custom/projects/` has exactly one folder:** auto-pick it. Don't set chat-session active (one-project members rely on the global default).
+- **If resolver returns "none" AND zero projects exist:** tell the user: *"You need a project before creating a strategy. Run `Create a new project for X` first."* STOP.
+- **If resolver returns "none" AND multiple projects exist:** ask *"Which project is this strategy for? Your options: <list>."* — wait for response. Once they pick, emit `[OMNI_SESSION_ACTIVE = <slug>]` so subsequent project-aware skills in this chat use the same project.
+- **If resolver returns a project but the folder is missing:** likely a stale chat-session marker pointing at a deleted project. Treat as the "none" case above.
+
+**In the output's first line, surface the resolved project + source:**
+
+```
+Creating strategy for project=<slug> (resolved from <chat-session | global-default>).
+```
 
 ### Step 2: Extract strategy name + derive slug
 

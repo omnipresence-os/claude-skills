@@ -17,9 +17,13 @@ Don't show shell commands. Plain English explanation of what was found.
 
 Read `~/.claude/skills/.omnipresence-path`. If missing, search common locations. If still missing, tell the user: *"Omnipresence isn't set up yet. Run `getting started` first."* STOP.
 
-### Step 2: Read the active project
+### Step 2: Resolve the active project (via project-resolver)
 
-Read `~/.claude/skills/.omnipresence-active-project`. If file exists, capture as `active_slug`. If missing or empty, set `active_slug = None`.
+Follow the [project-resolver](../project-resolver/SKILL.md) protocol. Capture both:
+- `chat_active_slug` — the chat-session marker resolution (may be null if no marker exists)
+- `global_default_slug` — read `~/.claude/skills/.omnipresence-active-project` directly (project-resolver does this with `prefer: global-default`)
+
+Both can be set, with chat-active overriding global-default for the current chat. The listing should mark BOTH if they differ (e.g., chat-active gets ⭐, global-default gets 🏠) so the operator sees which chat overrides their default. If they're the same, one mark is fine.
 
 ### Step 3: Walk the projects directory
 
@@ -52,13 +56,15 @@ Your projects (<N> total):
 
   ...
 
-Active project: <active_slug or "none set">
+⭐ Active for this chat: <chat_active_slug or "(none — using global default below)">
+🏠 Global default:       <global_default_slug or "(none set)">
 
-Switch projects with `Switch to project <slug>.`
-Create a new one with `Create a new project for X.`
+Switch this chat's active project: `Switch to project <slug>.`
+Change your global default:        `Set <slug> as my default project.`
+Create a new project:               `Create a new project for X.`
 ```
 
-If no active project is set, omit the star and the active-project line gets "(none set — say `Switch to project <slug>` to pick one)".
+If neither is set, both lines show "(none)" and a hint: *"Use `Switch to project X` (this chat only) or `Set X as my default project` (across all chats)."* If chat-active and global-default are the same, only show one line (⭐): "Active (this chat + global default): <slug>".
 
 ### Stop here.
 

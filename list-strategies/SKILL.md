@@ -13,14 +13,20 @@ Plain English. Clean tabular output.
 
 ## Execute these steps
 
-### Step 1: Resolve active project
+### Step 1: Resolve active project (via project-resolver)
 
-Read `~/.claude/skills/.omnipresence-active-project`.
+Follow the [project-resolver](../project-resolver/SKILL.md) protocol: chat-session marker first, then global default.
 
-- **If missing AND user explicitly asked for "all projects":** skip to Step 2's all-projects branch.
-- **If missing AND zero projects:** tell the user: *"You don't have any projects yet. Run `Create a new project for X` first."* STOP.
-- **If missing AND multiple projects:** ask *"Which project? Or say 'all' for all projects."*
-- **If present:** verify folder exists.
+- **If user explicitly asked for "all projects":** skip resolver, jump to Step 2's all-projects branch.
+- **If resolver returns "none" AND zero projects exist:** tell the user: *"You don't have any projects yet. Run `Create a new project for X` first."* STOP.
+- **If resolver returns "none" AND multiple projects exist:** ask *"Which project? Or say 'all' for all projects."* — wait for response. If they pick a specific one, emit `[OMNI_SESSION_ACTIVE = <slug>]` so subsequent project-aware skills in this chat use it.
+- **If resolver returns a project but the folder is missing:** treat as the "none" case.
+
+**In the output's first line, surface the resolved project + source** (when listing a single project, not when listing all):
+
+```
+Listing strategies for project=<slug> (resolved from <chat-session | global-default>).
+```
 
 Read `~/.claude/skills/.omnipresence-path`.
 

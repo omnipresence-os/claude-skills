@@ -170,9 +170,15 @@ If `config_action == "generate-now"`, leave this file unwritten for now — Step
 - **If `config_action == "deferred"`**, skip to Step 8.
 - **If `config_action == "generate-now"`**, invoke the `project-config-generation` synapse process (look it up via the MCP lookup tool if needed, or follow the steps inline from `core/processes/client-engagement/project-config-generation.md`). The process's Step 6b will write `custom/projects/<slug>/project-config.md`.
 
-### Step 8: Set the new project as active
+### Step 8: Set the new project as active (chat-session by default)
 
-Write `<slug>` to `~/.claude/skills/.omnipresence-active-project` (or `%USERPROFILE%\.claude\skills\.omnipresence-active-project` on Windows). Overwrite any existing value.
+Emit the chat-session marker so subsequent project-aware skills in this chat use the new project:
+
+```
+[OMNI_SESSION_ACTIVE = <slug>]
+```
+
+This is chat-scoped only — it does NOT touch the global default at `~/.claude/skills/.omnipresence-active-project`. If the user only has one project (this newly-created one) AND no global default is set, ALSO write the slug to the global pointer file (one-project members benefit from having the global default be their only project). Otherwise, leave the global pointer alone — the member can opt in to making this the global default by saying *"set <project-name> as my default project."*
 
 ### Step 9: Report success
 

@@ -1,15 +1,15 @@
 ---
 name: switch-project
-description: Sets the active project for the member's session. Writes the project slug to ~/.claude/skills/.omnipresence-active-project so every project-aware skill sources from that folder going forward. Trigger when the user says any of "switch to project X", "set active project to X", "work on X", "I'm working on X today", "use project X", "make X the active project". Handles fuzzy matching when the user's input doesn't exactly match a folder name. Auto-picks the single project when there's only one and no active is set.
+description: Sets the active project for this chat (per-chat scope, default) or as the member's global default across all chats (opt-in). Trigger when the user says any of "switch to project X", "set active project to X", "work on X", "I'm working on X today", "use project X", "make X the active project". For the global-default variant trigger on "set X as my default project", "make X my default project", "set default project to X", "this should be my default project". The chat-scope (default) is meant for the common agency workflow of running parallel chats per client — each chat's active project is independent. The global default applies whenever a chat doesn't have its own session-active set; single-client members use it as their permanent setting. Handles fuzzy matching when the user's input doesn't exactly match a folder name. Auto-picks the single project when there's only one and no active is set.
 ---
 
-# Switch Project — Set the Active Project for the Session
+# Switch Project — Set Active Project (Per-Chat by Default, Globally by Opt-In)
 
-Updates `~/.claude/skills/.omnipresence-active-project` so all downstream project-aware skills source from the right folder.
+Two scopes, one skill. The default scope is **per-chat** so parallel chats (e.g., "Spellbook writer" + "Kyper writer" running simultaneously) don't trample each other. The **global** scope is for members who only work on one project — set it once during onboarding, every chat picks it up.
 
 ## How to talk to the user
 
-Plain English. No shell commands shown.
+Plain English. No shell commands shown. ALWAYS surface which scope (chat / global) you wrote to at the end so the member knows.
 
 ## Execute these steps
 
@@ -17,63 +17,97 @@ Plain English. No shell commands shown.
 
 Read `~/.claude/skills/.omnipresence-path`. If missing, search common locations. If still missing, tell the user: *"Omnipresence isn't set up yet. Run `getting started` first."* STOP.
 
-### Step 2: Extract the target slug from the user's prompt
+### Step 2: Detect scope (chat vs global)
 
-Parse the user's prompt for the project name they're trying to switch to. The phrasing varies:
-- "Switch to project AcmeCorp" → `acmecorp`
-- "Set active project to Teal HQ" → `teal-hq`
-- "Work on my fitness blog project" → `my-fitness-blog`
+Default scope is **chat** — overridden by explicit signals in the prompt:
 
-Apply the same kebab-case normalization as new-project: lowercase, hyphens for spaces, strip non-alphanumeric except hyphens.
+- *"set as my default project"*, *"make X my default"*, *"set default to X"*, *"globally"*, *"--global"*, *"for all chats"* → **global** scope.
+- Everything else (default phrasing "switch to X", "work on X", etc.) → **chat** scope.
 
-### Step 3: Check if the target matches a project folder
+If the prompt is ambiguous AND the member has more than one project, ask once:
+
+> *"Set X as the active project for **just this chat** (so other chats stay on their own active projects), or as your **global default** (becomes the active project for any chat that doesn't override)?"*
+
+Single-project members default to global silently (no ambiguity to resolve).
+
+### Step 3: Extract the target slug
+
+Parse the user's prompt for the project name. Apply kebab-case normalization (same as `new-project`): lowercase, hyphens for spaces, strip non-alphanumeric except hyphens.
+
+Examples:
+- *"Switch to project AcmeCorp"* → `acmecorp`
+- *"Set Teal HQ as my default"* → `teal-hq`
+- *"Work on my fitness blog"* → `my-fitness-blog`
+
+### Step 4: Validate the target matches a project folder
 
 Look at `<synapse-path>/custom/projects/`. Check if `<target-slug>/` exists.
 
 - **Exact match:** proceed to Step 5.
+- **No exact match:** apply fuzzy matching (substring or Levenshtein ≤ 3). Behavior identical to the previous version of this skill — see below for the cases.
+  - **One close match:** ask: *"I don't see `<target>`, but `<close-match>` is close. Did you mean that?"* — Yes uses the close match.
+  - **Multiple close matches:** list them and ask the member to pick.
+  - **No matches and no projects exist:** tell the member to run `Create a new project for X` first. STOP.
+  - **No close matches but projects exist:** list all projects, ask which one.
 
-- **No exact match:** apply fuzzy matching. List all existing project slugs and find the closest by:
-  - Substring match (target contained in or contains existing slug)
-  - Levenshtein distance ≤ 3
-  
-  - **One close match:** ask: *"I don't see a project called `<target>`, but `<close-match>` is close. Did you mean that?"* — wait for Yes/No.
-    - Yes → use `<close-match>` as the target. Proceed to Step 5.
-    - No → list all available projects and ask: *"Your projects are: <list>. Which one?"* — wait, then re-validate.
-  
-  - **Multiple close matches:** show all candidates: *"I don't see `<target>` exactly. Did you mean one of these? <list of close>."* — wait for choice.
-  
-  - **No close matches AND no projects at all:** tell the user: *"You don't have any projects yet. Run `Create a new project for X` first."* STOP.
-  
-  - **No close matches but projects exist:** show all projects: *"`<target>` isn't a project. Your projects are: <list>. Which one?"* — wait for choice.
+### Step 5: Single-project auto-pick (edge case)
 
-### Step 4: Single-project auto-pick (edge case)
+If the user's intent is ambiguous (e.g., just "switch project" with no name) AND only one project folder exists, auto-pick it silently. Don't ask. Use **chat** scope by default; if they meant global they can re-issue with "set as default."
 
-If the user's intent is ambiguous (e.g., they just said "switch project" with no name) AND only one project folder exists, auto-pick it silently. Don't ask.
+### Step 6: Write the resolved scope
 
-### Step 5: Write the active-project file
+**For chat scope (default):**
 
-Write `<resolved-slug>` to `~/.claude/skills/.omnipresence-active-project` (or `%USERPROFILE%\.claude\skills\.omnipresence-active-project` on Windows). Overwrite any existing value.
+Emit a clearly-formatted marker line in your response output that `project-resolver` will scan for on subsequent skill calls in this chat:
 
-### Step 6: Report success
+```
+[OMNI_SESSION_ACTIVE = <resolved-slug>]
+```
+
+The marker MUST be on its own line, with the exact bracket + token format above. project-resolver scans the conversation history for the most recent such line.
+
+For belt-and-suspenders robustness against conversation compaction, ALSO write the slug to a session-scoped backup file if the agent harness exposes a session ID. On Claude Code, a reasonable path is `<claude-temp-dir>/omni-session-active` where `<claude-temp-dir>` is the per-session temp directory the harness creates (varies by Claude Code version; if you can't reliably get it, skip — the conversation marker is the primary mechanism).
+
+DO NOT write to `~/.claude/skills/.omnipresence-active-project` in chat scope. That's the global pointer; chat-scope writes leave it alone.
+
+**For global scope:**
+
+Write `<resolved-slug>` to `~/.claude/skills/.omnipresence-active-project` (Mac/Linux) or `%USERPROFILE%\.claude\skills\.omnipresence-active-project` (Windows). Overwrite any existing value.
+
+ALSO emit the chat-session marker, so the chat you ran this command IN reflects the change immediately (otherwise the chat would still use the OLD chat-session value, if any, until a new chat is opened):
+
+```
+[OMNI_SESSION_ACTIVE = <resolved-slug>]
+```
+
+### Step 7: Report success
 
 Read the project's `README.md` to get the display name.
 
-Tell the user:
+**For chat scope:**
 
 ```
-✅ Switched to project '<display_name>'.
+✅ Switched to project '<display_name>' for this chat.
 
   Slug: <slug>
   Folder: custom/projects/<slug>/
-  Strategies in progress: <count of strategy files with 'status: in-progress' frontmatter>
+  Strategies in progress: <count>
+  Scope: chat-session (this chat only — your global default is unchanged)
 
-Subsequent prompts will source from this project. The active-project slug is also passed to the Omnipresence MCP as `active_project` on lookups — your project's brand voice, style guide, glossary, and strategies surface as Tier-1 results above any methodology / process / skill content.
+Subsequent prompts in THIS chat will source from this project. Other chats stay on their own active projects. To make this your default across all chats, say: "Set <display_name> as my default project."
+```
 
-Useful next prompts:
+**For global scope:**
 
-  • Show me what's in this project:    What's in this project?
-  • List its strategies:                List strategies for this project.
-  • Continue a specific strategy:       Continue strategy <slug>.
+```
+✅ Set '<display_name>' as your global default project.
+
+  Slug: <slug>
+  Folder: custom/projects/<slug>/
+  Strategies in progress: <count>
+  Scope: global (default for every chat that doesn't override)
+
+This is also active in THIS chat. Any chat that explicitly sets its own active (via "switch to X") will override this default for that chat only.
 ```
 
 If the project has no strategies yet, omit the "Strategies in progress" line and replace with: *"This project doesn't have any strategies yet — say `Create a new strategy for this project` to add one."*
@@ -83,5 +117,7 @@ If the project has no strategies yet, omit the "Strategies in progress" line and
 ## What this skill MUST NOT do
 
 - Do NOT create a new project if the target doesn't match. Always ask first.
-- Do NOT modify any project files; just the active-project pointer.
-- Do NOT show raw filesystem output.
+- Do NOT modify any project files; just the active-project pointer (global) and/or the chat conversation marker.
+- Do NOT write to the global pointer file in chat scope. Members frequently want to "try" a project for one chat without changing their default — global writes should be explicit.
+- Do NOT omit the `[OMNI_SESSION_ACTIVE = <slug>]` marker. project-resolver depends on it; skipping it means downstream skills in this chat won't see the switch.
+- Do NOT show raw filesystem output (write paths, hex dumps, etc.).

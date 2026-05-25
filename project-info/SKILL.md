@@ -13,13 +13,21 @@ Plain English. Quote the relevant file content (don't just say "check the file")
 
 ## Execute these steps
 
-### Step 1: Resolve active project
+### Step 1: Resolve active project (via project-resolver)
 
-Read `~/.claude/skills/.omnipresence-active-project`. If missing, tell the user: *"No active project is set. Pick one with `Switch to project X`, or `List my projects` to see what you have."* STOP.
+Follow the [project-resolver](../project-resolver/SKILL.md) protocol: check the chat-session marker first (most recent `[OMNI_SESSION_ACTIVE = <slug>]` line in conversation), then the global default at `~/.claude/skills/.omnipresence-active-project`. Use whichever resolves first.
+
+If neither resolves, tell the user: *"No active project is set for this chat, and no global default is configured. Pick one with `Switch to project X` (this chat only) or `Set X as my default project` (across all chats). Or run `List my projects` to see what you have."* STOP.
 
 Read `~/.claude/skills/.omnipresence-path` for the synapse fork path. If missing, redirect to `getting-started`.
 
-Verify `<synapse-path>/custom/projects/<active-slug>/` exists. If not, clear the active file and tell the user the project folder is missing.
+Verify `<synapse-path>/custom/projects/<active-slug>/` exists. If not, clear the chat-session marker (don't touch the global pointer — could be a stale chat-session reference to a now-deleted project) and tell the user the project folder is missing.
+
+**In the output's first line, surface the resolved project + source** so the operator can verify the routing was correct:
+
+```
+Showing info for project=<slug> (resolved from <chat-session | global-default>).
+```
 
 ### Step 2: Interpret the user's intent
 
