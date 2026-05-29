@@ -331,9 +331,32 @@ For the service(s) OAuth was set up for, run a test call using the OAuth credent
 
 Surface the result + the 7-day expiry reminder.
 
+#### Step 8.5: Map properties to projects (CRITICAL for multi-project members)
+
+If the test in 8.4 returned **more than one** GSC property or GA4 property, the member has agency-scale access — and Omni now needs to know which property belongs to which project. **Without this mapping, a request like "pull GSC data for Cascade Stone Works" can return the wrong client's data**, because the credentials can see everyone's properties.
+
+For each project the member wants Omni to report on, write the property mapping into that project's config. Ask:
+
+> *"Your credentials can access these properties: `<list>`. Let's map them to your projects so Omni always pulls the right site's data. For each project, tell me which GSC property and (if set up) which GA4 property belongs to it — or say 'skip' for any you'll map later."*
+
+For each project the member maps, write to `<fork>/custom/projects/<project-slug>/project-config.md` under a `googleProperties` block:
+
+```yaml
+googleProperties:
+  gscPropertyUrl: "sc-domain:cascadestoneworks.com"   # or https://cascadestoneworks.com/
+  ga4PropertyId: "properties/123456789"
+  siteUrl: "https://cascadestoneworks.com"
+```
+
+(Create the `project-config.md` file or the `googleProperties` block if it doesn't exist; merge into the existing config if it does.)
+
+This is the durable fix for cross-project data leakage: once each project declares its properties, `gsc-connection` (and GA4 skills) resolve the property from the active project's config instead of guessing. See project-config-foundation Belief 18.
+
+**Single-project members can skip this** — when credentials see only one property, there's nothing to disambiguate.
+
 ### Step 9: Loop or wrap
 
-After OAuth setup + test, go back to Step 7 (What's next?). User can add more SA grants, more OAuth scopes, or finish.
+After OAuth setup + test (+ property mapping if multi-project), go back to Step 7 (What's next?). User can add more SA grants, more OAuth scopes, or finish.
 
 ### Stop here.
 
