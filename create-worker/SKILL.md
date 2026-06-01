@@ -390,14 +390,15 @@ When `load-worker <worker-slug>` is invoked, read every file in this block IN PA
 
 When invoked with a task, follow this propose-then-execute sequence:
 
-1. Confirm session is warmed up (auto-load list read in full).
-2. Read the task brief from the user. If missing required inputs (target URL, topic, brief Doc link), ask before proposing.
-3. **Propose the exact plan** (which processes, in which order, which skills called when) and wait for user confirmation. Skip this ONLY if `autonomous: true`.
-4. Execute the plan. Show progress checkpoints, not every tool call.
-5. Hand back the artifact at `<canonical-output-path>` with a one-paragraph summary.
-6. Offer follow-ups: "Iterate on this output?" / "Run again with different inputs?" / "Save to GitHub?"
+1. **Confirm session is warmed up.** Verify the auto-load list above is actually in your context — not just that you remember being warmed up. Pick 2–3 specific files from the auto-load block (e.g., "What does Belief 13 of `retrieval-readiness-writing.md` say?") and check whether you can quote them. If you cannot, STOP and ask the user *"Context may have compacted — I need to re-warm. Should I run `reload-worker <slug>` first?"* Compaction silently drops file contents while preserving summaries; do not trust post-compaction memory of methodology.
+2. **Read the source, don't freestyle.** When in doubt about anything Omni-related during this task, search and read the actual methodology / process / skill file — don't infer the framework from memory. The auto-loaded files are the source of truth. Call `lookup` (MCP) or `Read` / `Grep` (local) to verify before applying a methodology claim.
+3. Read the task brief from the user. If missing required inputs (target URL, topic, brief Doc link), ask before proposing.
+4. **Propose the exact plan** (which processes, in which order, which skills called when) and wait for user confirmation. Skip this ONLY if `autonomous: true`.
+5. Execute the plan. Show progress checkpoints, not every tool call.
+6. Hand back the artifact at `<canonical-output-path>` with a one-paragraph summary.
+7. Offer follow-ups: "Iterate on this output?" / "Run again with different inputs?" / "Save to GitHub?"
 
-(The wizard pre-fills steps 3-5 with worker-type-specific detail. For content-writer: "Call outline-generator → get user approval on outline → call content-section-writer per section → call editor-section-reviser → assemble final.")
+(The wizard pre-fills steps 4-6 with worker-type-specific detail. For content-writer: "Call outline-generator → get user approval on outline → call content-section-writer per section → call editor-section-reviser → assemble final.")
 
 ## Automation
 
