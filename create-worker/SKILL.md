@@ -391,12 +391,13 @@ When `load-worker <worker-slug>` is invoked, read every file in this block IN PA
 When invoked with a task, follow this propose-then-execute sequence:
 
 1. **Confirm session is warmed up.** Verify the auto-load list above is actually in your context — not just that you remember being warmed up. Pick 2–3 specific files from the auto-load block (e.g., "What does Belief 13 of `retrieval-readiness-writing.md` say?") and check whether you can quote them. If you cannot, STOP and ask the user *"Context may have compacted — I need to re-warm. Should I run `reload-worker <slug>` first?"* Compaction silently drops file contents while preserving summaries; do not trust post-compaction memory of methodology.
-2. **Read the source, don't freestyle.** When in doubt about anything Omni-related during this task, search and read the actual methodology / process / skill file — don't infer the framework from memory. The auto-loaded files are the source of truth. Call `lookup` (MCP) or `Read` / `Grep` (local) to verify before applying a methodology claim.
-3. Read the task brief from the user. If missing required inputs (target URL, topic, brief Doc link), ask before proposing.
-4. **Propose the exact plan** (which processes, in which order, which skills called when) and wait for user confirmation. Skip this ONLY if `autonomous: true`.
-5. Execute the plan. Show progress checkpoints, not every tool call.
-6. Hand back the artifact at `<canonical-output-path>` with a one-paragraph summary.
-7. Offer follow-ups: "Iterate on this output?" / "Run again with different inputs?" / "Save to GitHub?"
+2. **Check for TBD placeholders.** Look at every project file in your auto-load list. If any contains `TBD-PLACEHOLDER:` in its first 10 lines, that file is a stub — the slot has not been filled. STOP before starting the task and surface it: *"Heads up: `<file>` is still a TBD placeholder, so I'll be guessing on `<what the slot represents>`. Want to fill it now (~2-3 min) using `fill-project-gap`, or push through and risk drift?"* If the user says fill, invoke `fill-project-gap` in Mode C (silent agent-fired interrupt), let it complete, then resume Step 3. If push through, note the gap and continue but flag every output where the missing slot would have changed the result.
+3. **Read the source, don't freestyle.** When in doubt about anything Omni-related during this task, search and read the actual methodology / process / skill file — don't infer the framework from memory. The auto-loaded files are the source of truth. Call `lookup` (MCP) or `Read` / `Grep` (local) to verify before applying a methodology claim.
+4. Read the task brief from the user. If missing required inputs (target URL, topic, brief Doc link), ask before proposing.
+5. **Propose the exact plan** (which processes, in which order, which skills called when) and wait for user confirmation. Skip this ONLY if `autonomous: true`.
+6. Execute the plan. Show progress checkpoints, not every tool call.
+7. Hand back the artifact at `<canonical-output-path>` with a one-paragraph summary.
+8. Offer follow-ups: "Iterate on this output?" / "Run again with different inputs?" / "Save to GitHub?"
 
 (The wizard pre-fills steps 4-6 with worker-type-specific detail. For content-writer: "Call outline-generator → get user approval on outline → call content-section-writer per section → call editor-section-reviser → assemble final.")
 

@@ -55,6 +55,8 @@ In a SINGLE message, call the Read tool in parallel for every file listed in the
 
 Silently absorb the content into context. If a file is missing, note it for Step 4 but DON'T fail — the worker might still be useful with degraded context.
 
+**Detect TBD placeholders.** For every project file in the auto-load list (style-guide.md, glossary.md, banned-phrases.md, editor-rules.md, project-config.md), check whether the file contains a `TBD-PLACEHOLDER:` marker in its first 10 lines. Any file with that marker is a stub, not real content — collect the list of placeholder files for the warmup confirmation in Step 4.
+
 ### Step 4 — Confirm warmup
 
 Tell the user, exactly:
@@ -67,11 +69,21 @@ Tell the user, exactly:
   • Quirks: <one-line summary of the quirks section, or 'none'>
   • Autonomy: <Propose-then-execute | Autonomous (no plan-approval gate)>
   • Missing files: <list, if any — or 'none'>
+  • TBD placeholders: <list of files with TBD-PLACEHOLDER markers, or 'none'>
 
 Ready. What do you want me to do?
 ```
 
-If the user's original prompt already included a task (e.g., *"load content-writer and draft a post on programmatic SEO"*), skip the trailing question and continue to Step 5 with the captured task.
+If `TBD placeholders` is non-empty, append a one-line suggestion AFTER the "Ready" line: *"Heads up: `<file>` is still a TBD placeholder, so I'll be guessing on `<what that file would have specified>`. Want to fill it now (~2-3 min) before we start, or push through and risk drift?"* Use the `AskUserQuestion` tool with two options:
+
+| Option | When to pick |
+|---|---|
+| Fill it now | Take 2-3 minutes to set up the slot — the rest of this task will use the filled content |
+| Skip and continue | Run the task with defaults / project-config alone — I'll flag if I have to guess |
+
+If "Fill it now," invoke `fill-project-gap` (Mode C — silent agent-fired interrupt) with the placeholder slot. Resume Step 5 when it returns. If "Skip and continue," proceed to Step 5 with a noted gap.
+
+If the user's original prompt already included a task (e.g., *"load content-writer and draft a post on programmatic SEO"*), capture it but DO NOT skip the placeholder check — the placeholder warning fires before the captured task starts. After the placeholder question is answered (fill or skip), continue to Step 5 with the captured task.
 
 If `Missing files` is non-empty, append: *"If those files matter, run `Sync omnipresence` to pull the latest synapse upstream."*
 

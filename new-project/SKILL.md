@@ -79,10 +79,13 @@ Create these directories and files at `<synapse-path>/custom/projects/<slug>/`:
 
 **Directories:**
 - `custom/projects/<slug>/`
-- `custom/projects/<slug>/writing-samples/` (with `.gitkeep` so git tracks the empty dir)
+- `custom/projects/<slug>/writing-samples/` (with a README explaining what to drop in)
 - `custom/projects/<slug>/strategies/` (with `.gitkeep`)
+- `custom/projects/<slug>/workers/` (with `.gitkeep` — populated by `create-worker`)
 
 **Files (templates below):**
+
+Four of these files ship as TBD placeholders so that future agents can detect they're empty and offer to fill them. Each placeholder has a `<!-- TBD-PLACEHOLDER: <slot> -->` marker at the top — agents grep for this string to know whether a slot has been filled. Detection plus interrupt-and-fill lives in the `fill-project-gap` skill; here we just write the stubs.
 
 #### `custom/projects/<slug>/README.md`
 
@@ -97,23 +100,42 @@ Create these directories and files at `<synapse-path>/custom/projects/<slug>/`:
 
 ## What's in this folder
 
+Core files (filled in over time — every project needs these eventually):
 - `project-config.md` — the 8-field structured config (or TODO if deferred)
-- `style-guide.md` — writing voice, tone, brand rules
-- `writing-samples/` — voice samples (add as you accumulate them)
-- `strategies/` — multi-day/week implementation plans for this project
+- `style-guide.md` — writing voice, tone, brand rules **(starts as TBD placeholder)**
+- `glossary.md` — preferred terminology, central-entity names **(starts as TBD placeholder)**
+- `banned-phrases.md` — never-say list **(starts as TBD placeholder)**
+- `editor-rules.md` — editorial publish gates **(starts as TBD placeholder)**
 - `notes.md` — operator running log
 
-Optional files (create when you have content for them):
-- `glossary.md` — preferred terminology
-- `banned-phrases.md` — never-say list
-- `editor-rules.md` — editorial constraints
-- `image-style-guide.md` — visual brand
+Collections:
+- `writing-samples/` — voice samples (drop in over time as you accumulate them)
+- `strategies/` — multi-day/week implementation plans for this project
+- `workers/` — saved worker specs (populated by `create-worker`)
+- `outputs/` — generated drafts, audits, reports (populated as work runs)
+
+Project-specific files (create only when you have content for them):
+- `bios.md` — for personal-brand projects
+- `messaging.md` — for surface-copy projects (homepage, LinkedIn, etc.)
+- `image-style-guide.md` / `image-policy.md` — for projects with explicit visual rules
 - `prompt-overrides/` — per-pipeline-stage system prompt overrides
+
+## Filling in the TBD placeholders
+
+The four placeholder files above are intentionally short stubs. When an agent loads this project and notices a placeholder, it'll offer to walk you through filling it (~2-3 min each). Or trigger it explicitly:
+
+- `Fill in my style guide`
+- `Fill in my glossary`
+- `Fill in my banned phrases`
+- `Fill in my editor rules`
+
+You don't have to fill them all up front. The system works fine with partial content — placeholders just surface as "heads up" notes when relevant.
 
 ## Common prompts
 
 - `What's the brand voice for this project?` — surfaces style-guide.md
 - `Create a new strategy for X` — adds a strategy to strategies/
+- `Create a worker for X` — sets up a reusable specialist for this project
 - `List strategies for this project` — shows what's running
 - `Continue strategy X` — resume a strategy from where you left off
 ```
@@ -123,29 +145,117 @@ Optional files (create when you have content for them):
 ```markdown
 # Style Guide — <display_name>
 
-<!-- Starter style guide. Fill in or run 'Update brand voice for <slug>' to have Omni draft from your project config. -->
+<!-- TBD-PLACEHOLDER: style-guide. Run `Fill in my style guide` or paste your voice rules below. -->
+
+> What good content for this slot looks like: a short, opinionated description of voice + tone, followed by a hard list of rules (never-do-X, always-do-Y) and 2-3 example paragraphs that exemplify the voice. Two pages max. Specific beats comprehensive.
 
 ## Voice
 
-(Conversational? Authoritative? Technical? Plain-language?)
+_(Conversational? Authoritative? Technical? Plain-language? Pick one or two. Avoid "professional yet friendly" — that's filler.)_
 
 ## Tone
 
-(Warm? Direct? Formal?)
+_(Warm? Direct? Skeptical? Dry? Same rule — specific words, not "appropriate".)_
 
 ## Rules
 
-(One per line: e.g., "Never use em-dashes." / "Always cite sources inline.")
+_(One per line. Examples: "Never use em-dashes." / "Always cite sources inline." / "Lead with the answer, not the setup.")_
 
 ## Examples
 
-(Two or three short paragraphs that exemplify the voice.)
+_(Two or three short paragraphs that exemplify the voice. Real writing from the brand, ideally — extracted from `writing-samples/` if available.)_
+```
+
+#### `custom/projects/<slug>/glossary.md`
+
+```markdown
+# Glossary — <display_name>
+
+<!-- TBD-PLACEHOLDER: glossary. Run `Fill in my glossary` or paste preferred terminology below. -->
+
+> What good content for this slot looks like: a small table of preferred names + alternatives + things-to-avoid. The central entity (the brand's main thing) is the most important entry — agents check this when deciding what to call the product / company / person.
+
+## Preferred terms
+
+| Concept | Preferred | Alternatives OK | Avoid |
+|---|---|---|---|
+| _(e.g., the central entity)_ | _(e.g., "Omnipresence")_ | _(e.g., "Omni")_ | _(e.g., "the assistant")_ |
+| | | | |
+
+## Custom terminology
+
+_(Domain-specific terms the brand uses with a non-obvious meaning. One per entry: term + definition + example sentence.)_
+```
+
+#### `custom/projects/<slug>/banned-phrases.md`
+
+```markdown
+# Banned Phrases — <display_name>
+
+<!-- TBD-PLACEHOLDER: banned-phrases. Run `Fill in my banned phrases` or paste your never-say list below. -->
+
+> What good content for this slot looks like: a flat list of exact phrases / words / patterns that should never appear in content for this brand. Agents check every draft against this list. Specific beats comprehensive — "Leverage" beats "corporate-speak in general".
+
+## Never use
+
+_(One per line. Examples: "leverage" / "synergy" / "in today's fast-paced world" / em-dashes / oxford comma in lists / starting a sentence with "Indeed,")_
+
+## Pattern bans
+
+_(Sentence shapes or structural patterns to avoid. Examples: "Don't start posts with a question." / "No hedge words like 'might' or 'perhaps' in opening sentences.")_
+```
+
+#### `custom/projects/<slug>/editor-rules.md`
+
+```markdown
+# Editor Rules — <display_name>
+
+<!-- TBD-PLACEHOLDER: editor-rules. Run `Fill in my editor rules` or paste your publish gates below. -->
+
+> What good content for this slot looks like: the gates a piece has to pass before it ships. Each gate is a yes/no test. Drafts that fail any gate go back for revision. Specific beats comprehensive — three sharp gates beat ten fuzzy ones.
+
+## Publish gates
+
+_(One per line. Each is a yes/no test. Examples: "Has at least one citation to a primary source." / "Opens with a declarative answer in sentence 1." / "Passes the read-aloud test — sounds like a human, not a press release.")_
+
+## Auto-reject conditions
+
+_(One per line. Examples: "Any banned phrase from `banned-phrases.md` appears." / "Word count exceeds <N> words." / "Uses passive voice in the opening paragraph.")_
 ```
 
 #### `custom/projects/<slug>/notes.md`
 
 ```markdown
 # Notes — <display_name>
+
+<!-- Operator running log. Append decisions, surprises, and "remember this for next time" entries with a date stamp. -->
+```
+
+#### `custom/projects/<slug>/writing-samples/README.md`
+
+```markdown
+# Writing Samples — <display_name>
+
+Drop existing writing from the brand into this folder — one piece per file. Agents reference these when matching voice for new content.
+
+## What to add
+
+- Published blog posts / pages that nail the voice
+- Email or LinkedIn copy the brand owner is proud of
+- Spoken transcripts of the brand owner (raw voice — often the truest signal)
+- A short note about WHY this sample is on-brand if it's not obvious
+
+## What NOT to add
+
+- Generic "look at my LinkedIn bio" stuff that's been ghostwritten or AI-generated
+- Content from a different brand
+- Samples where the voice is aspirational rather than current — the system mimics what's here, not what you wish was here
+
+## File naming
+
+Free-form, but keep it scannable: `2026-05-blog-post-on-X.md`, `linkedin-post-Y.md`, `podcast-transcript-Z.md`. The date helps when voice drifts over time.
+
+This folder starts empty. Add one sample to start — even one good sample beats none.
 ```
 
 #### `custom/projects/<slug>/project-config.md`
@@ -160,7 +270,7 @@ status: deferred
 
 # Project Config — <display_name>
 
-<!-- TODO: run `Generate project config for <slug>` to fill this in. -->
+<!-- TBD-PLACEHOLDER: project-config. Run `Generate project config for <slug>` to fill this in via the structured 8-field interview. -->
 ```
 
 If `config_action == "generate-now"`, leave this file unwritten for now — Step 7 will chain to project-config-generation which writes it.
@@ -191,19 +301,31 @@ Tell the user, exactly:
 
 Created:
   • README.md
-  • style-guide.md (starter)
-  • writing-samples/ (empty)
-  • strategies/ (empty)
+  • style-guide.md       (TBD placeholder)
+  • glossary.md          (TBD placeholder)
+  • banned-phrases.md    (TBD placeholder)
+  • editor-rules.md      (TBD placeholder)
   • notes.md
-  • project-config.md (<status: ready | deferred>)
+  • writing-samples/     (empty — README inside explains what to add)
+  • strategies/          (empty)
+  • workers/             (empty — populated by `Create a worker`)
+  • project-config.md    (<status: ready | deferred>)
 
 Active project is now '<slug>'. Subsequent prompts will source from this folder.
 
+About the TBD placeholders: I created four stub files (style-guide, glossary, banned-phrases, editor-rules) with short explanations of what good content looks like for each slot. You don't need to fill them all now — agents will notice when they need one and offer to walk you through filling it. Or trigger it manually:
+
+  • Fill in my style guide
+  • Fill in my glossary
+  • Fill in my banned phrases
+  • Fill in my editor rules
+
 Next prompts you might want:
 
-  • Add a strategy:        Create a new strategy for <display_name>.
-  • Update brand voice:    Update brand voice for <slug>.
-  • Save to GitHub:        Push my synapse changes.
+  • Add a strategy:           Create a new strategy for <display_name>.
+  • Set up a content writer:  Create a worker for content writing.
+  • Fill in brand voice:      Fill in my style guide.
+  • Save to GitHub:           Push my synapse changes.
 ```
 
 ### Stop here. Do NOT propose other steps.
