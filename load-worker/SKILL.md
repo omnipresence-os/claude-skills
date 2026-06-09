@@ -28,9 +28,18 @@ Extract worker slug from the user's prompt:
 - **Slug matches exactly one worker file:** use it.
 - **Slug ambiguous (fuzzy match returns multiple):** list them: *"Which worker? Your options: `<bullet list of slugs + missions>`."*
 - **Only one worker exists in the project AND no slug given:** auto-pick it.
-- **Worker not found AND no close fuzzy match:** tell the user *"No worker named `<slug>` for project `<active-slug>`. Create one with `Create a worker for <role>`, or pick from: `<list>`."* STOP.
+- **Worker not found AND no close fuzzy match:** tell the user *"No worker named `<slug>` for project `<active-slug>`, and no core default exists for that slug either. Create one with `Create a worker for <role>`, or pick from: `<list of available across all tiers>`."* STOP.
 
-Verify `<synapse-path>/custom/projects/<active-slug>/workers/<worker-slug>.md` exists before continuing.
+**Four-tier resolution (first hit wins).** Walk the worker spec path in this order:
+
+1. `<synapse-path>/custom/projects/<active-slug>/workers/<worker-slug>.md` — project-scoped (always wins)
+2. `<synapse-path>/custom/workers/<worker-slug>.md` — member-global (across all projects)
+3. `<synapse-path>/overrides/workers/<worker-slug>.md` — member's override of a core default
+4. `<synapse-path>/core/workers/<worker-slug>.md` — shipped baseline
+
+Capture which tier resolved into a `loaded_from` variable (`project | member-global | override | core-default`). Surface this in the Step 4 confirmation block so the user knows whether they're running a project-customized worker or the shipped baseline.
+
+When listing "available workers" for the disambiguation / not-found error, list across ALL four tiers (project workers + member-global workers + core defaults), deduplicated by slug, with the resolving tier shown.
 
 ### Step 2 — Read the worker spec
 
@@ -45,6 +54,8 @@ Read the spec file. Parse frontmatter and body sections. Extract:
 - `Automation` (yaml block — optional)
 
 ### Step 3 — Fan-out read every file in auto_load
+
+**If `loaded_from === "core-default"` OR `loaded_from === "override"` (tiers 3-4), substitute `<project-slug>` placeholders** in the spec's auto-load block with the active project slug BEFORE fanning out reads. Core/override specs use `<project-slug>` as a literal placeholder in path references (e.g., `custom/projects/<project-slug>/project-config.md`); the active project slug from Step 1 replaces every occurrence. Project-tier specs (tiers 1-2) have hardcoded slugs — no substitution needed.
 
 In a SINGLE message, call the Read tool in parallel for every file listed in the spec's auto-load block. Resolve paths:
 
@@ -64,6 +75,7 @@ Tell the user, exactly:
 ```
 ✅ Loaded as <display_name> for project '<active-slug>'.
 
+  • Source: <project | member-global | override | core-default>
   • Mission: <mission>
   • Loaded: <N> methodologies, <M> processes, <K> skills, <P> project files
   • Quirks: <one-line summary of the quirks section, or 'none'>
@@ -73,6 +85,8 @@ Tell the user, exactly:
 
 Ready. What do you want me to do?
 ```
+
+If `Source: core-default`, append after the block: *"This is the shipped baseline. To customize for this project (add brand-specific quirks, change the auto-load list, flip autonomy), say `Create a worker for <slug>` — it forks the core spec into `custom/projects/<active-slug>/workers/<slug>.md` where you can edit freely without losing the upstream version."*
 
 If `TBD placeholders` is non-empty, append a one-line suggestion AFTER the "Ready" line: *"Heads up: `<file>` is still a TBD placeholder, so I'll be guessing on `<what that file would have specified>`. Want to fill it now (~2-3 min) before we start, or push through and risk drift?"* Use the `AskUserQuestion` tool with two options:
 

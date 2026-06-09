@@ -60,7 +60,7 @@ Creating worker for project=<slug> (resolved from <chat-session | global-default
 
 ### Step 2 — Pick preset or custom (AskUserQuestion, two panels)
 
-There are 9 total options (8 presets + Custom). Split across two AskUserQuestion calls.
+There are 6 total options (5 shipped presets + Custom). The presets are the 5 worker specs shipped at `core/workers/<role>.md` in the synapse upstream — these are the same specs `load-worker` resolves to when a member loads a worker by slug without forking. Picking a preset here means "fork the core spec into my project for customization." Split across two AskUserQuestion calls.
 
 **Panel 1 — "What kind of worker?":**
 
@@ -68,8 +68,8 @@ There are 9 total options (8 presets + Custom). Split across two AskUserQuestion
 |---|---|
 | Content writer | Writes blog posts, pillar pages, landing copy from briefs or topics |
 | Content refresher | Audits and rewrites existing pages to fix decay, AEO gaps, or rank slippage |
-| Link builder | Discovers prospects, drafts outreach, triages replies, tracks placements |
-| Technical SEO auditor | Crawls a site (Screaming Frog + GSC), surfaces issues, recommends fixes |
+| Topical map builder | Generates and validates topical maps for a new lane or niche |
+| Internal linker | Discovers recent target pages + adds inbound internal links with anchor + placement craft |
 
 If the user picks one of these four, jump to Step 3 with `preset_type = <chosen>`.
 
@@ -79,12 +79,12 @@ If the user picks "Other / Show me more," ask Panel 2.
 
 | Option | When to pick |
 |---|---|
-| Topical map builder | Generates and validates topical maps for a new lane or niche |
-| AEO / AIO optimizer | Targets answer-engine retrieval (ChatGPT, Perplexity, AIO panel) specifically |
-| Programmatic SEO operator | Spins up large sets of templated pages (locations, comparisons, alternatives) |
-| Brand voice extractor | Reads writing samples + brand pages to extract a style guide and writing-samples corpus |
+| Local SEO strategist | URL → revenue-led visibility report for a cold prospect (organic / map-pack / AI) |
+| Custom / Other | None of the above — describe the role and I'll build a custom auto-load list via the methodology MCP |
 
-If still none match, fall back to a Custom path: ask *"Describe the worker's role in one sentence — I'll build a custom auto-load list using the methodology MCP."* and set `mode = custom`. Otherwise set `mode = preset`.
+If user picks "Local SEO strategist," set `preset_type = local-seo-strategist`. If "Custom / Other," set `mode = custom` and ask *"Describe the worker's role in one sentence — I'll build a custom auto-load list using the methodology MCP."* Otherwise set `mode = preset` with the chosen preset_type.
+
+**About the 5 shipped presets.** These five were sourced from Jonathan's `rank-agent` fork where each has at least one verified live test run. Other roles (link-builder, technical-seo-auditor, AEO/AIO optimizer, programmatic SEO operator, brand-voice extractor) were proposed in earlier preset catalogs but never validated in real use — they are NOT shipped as core defaults. If a member wants one of those, use `mode = custom` and the MCP `lookup` flow.
 
 ### Step 3 — Capture worker display name + derive slug
 
@@ -104,10 +104,16 @@ Store as `mission`.
 
 ### Step 5 — Build the auto-load list
 
-**If `mode = preset`:** look up the hardcoded bundle for `preset_type` in the **Preset auto-load bundles** section below. Show the user the proposed list as plain bullets grouped by type:
+**If `mode = preset`:** read the shipped default spec from the local fork at `<synapse-path>/core/workers/<preset_type>.md`. This is the canonical baseline — the same spec `load-worker` resolves to when a member loads a worker by slug without having forked it.
+
+- **Stale-fork hard-fail.** If `core/workers/<preset_type>.md` does NOT exist in the local fork, STOP and tell the user: *"Your fork is missing the shipped default at `core/workers/<preset_type>.md`. Run `Sync omnipresence` to pull the latest upstream, then re-run this skill. (The presets used to be embedded in this skill body; they were promoted to first-class files in core/workers/ as of 2026-06-09. If sync didn't fix it, the upstream may not have shipped this preset yet — check the available presets.)"* No silent fallback. Two sources of truth = guaranteed drift.
+
+- **Parse the auto-load block** from the spec's body — the `### Methodologies`, `### Processes`, `### Core skills`, and `### Project files` sections. Substitute `<project-slug>` placeholders with the active project slug at parse time.
+
+- Present to user as plain bullets grouped by type:
 
 ```
-For a <preset_type>, I'd auto-load these on every session:
+For a <preset_type>, here's the auto-load list shipped in core/workers/<preset_type>.md:
 
 Methodologies (read first — these are the "why"):
   • <file 1>
@@ -116,18 +122,17 @@ Methodologies (read first — these are the "why"):
 
 Processes (the playbooks this worker runs):
   • <file 1>
-  • <file 2>
 
 Core skills (tools it invokes):
   • <file 1>
   • <file 2>
 
 Project files (per-client context):
-  • project-config.md
-  • style-guide.md
-  • writing-samples/ (all files)
+  • custom/projects/<active>/project-config.md
+  • custom/projects/<active>/style-guide.md
+  • ...
 
-Want me to add or remove anything?
+Want me to add or remove anything? (We're forking this spec into your project — the core default stays untouched.)
 ```
 
 If user says *"good"* / *"yes"* / *"looks right"*, proceed. If they ask to add/remove, edit the list inline and re-confirm.
@@ -136,7 +141,7 @@ If user says *"good"* / *"yes"* / *"looks right"*, proceed. If they ask to add/r
 
 **Anti-hallucination guard:** before writing the spec, verify every file path in the proposed list exists in the local fork. If any are missing, flag them inline: `<path> (missing — run sync-omnipresence)`. Don't silently drop them.
 
-Store final list as `auto_load`.
+Store final list as `auto_load`. Also capture the full `core/workers/<preset_type>.md` body (with placeholders substituted) so Step 9 can fork it cleanly.
 
 ### Step 6 — Capture project-specific quirks (the curve balls)
 
@@ -187,7 +192,26 @@ If Hermes or OpenClaw, ask inline: *"What cadence? (e.g., 'every Monday 9am UTC'
 
 ### Step 9 — Write the worker spec file
 
-Write `<synapse-path>/custom/projects/<active-slug>/workers/<worker-slug>.md` using the **Worker spec schema** below. Create the `workers/` folder if it doesn't exist. Do not show the user the raw file. Tell them: *"Worker spec saved at custom/projects/`<active>`/workers/`<worker-slug>`.md."*
+**If `mode = preset`** (forking a core/workers/ default):
+
+1. Take the captured core spec body from Step 5 (with `<project-slug>` placeholders already substituted with the active project slug).
+2. Rewrite the frontmatter:
+   - Drop `core_default: true`
+   - Drop the `author: omnipresence-os` field (or change to the operator's name)
+   - Drop the `description:` block (project-tier specs don't need it for the manifest — the spec lives in `custom/projects/<slug>/workers/`, not `core/`)
+   - Add `project: <active-slug>`
+   - Set `worker_slug: <worker-slug>` (whatever the user picked in Step 3 — defaults to `<preset_type>` but may differ)
+   - Set `worker_type: <preset_type>`
+   - Set `display_name: <user-supplied or carried-over>`
+   - Set `mission: <Step 4 mission if user changed it, else carry over from core spec>`
+   - Set `version: 1`, `created: <today>`, `last_updated: <today>`
+   - Set `autonomous: <Step 7 choice>`
+3. Replace the spec body's "Project-specific quirks" section with the operator's Step 6 input (free-form prose, or `None.` if the operator skipped).
+4. Replace the spec body's intro line (the `> mission — ... worker for project ...` line) with the appropriate project-scoped phrasing.
+
+**If `mode = custom`:** assemble the spec from scratch using the **Worker spec schema** below. (No core spec to fork from.)
+
+Write to `<synapse-path>/custom/projects/<active-slug>/workers/<worker-slug>.md` either way. Create the `workers/` folder if it doesn't exist. Do not show the user the raw file. Tell them: *"Worker spec saved at custom/projects/`<active>`/workers/`<worker-slug>`.md. The shipped default at `core/workers/<preset_type>.md` is untouched — your project-tier override wins at load time."* (Skip the core/-tier sentence for `mode = custom`.)
 
 Also append to `<synapse-path>/custom/projects/<active-slug>/README.md` under a `## Workers` section (create the section if it doesn't exist):
 
@@ -245,81 +269,13 @@ Next prompts:
 
 ---
 
-## Preset auto-load bundles
+## Preset source of truth
 
-These eight presets map onto the dominant Omni workflows. Every path below has been verified to exist in the synapse fork. All paths are relative to the synapse fork root.
+The 5 shipped presets live as first-class spec files at `core/workers/<role>.md` in the omnipresence-os/synapse upstream — `content-writer`, `content-refresher`, `topical-map-builder`, `internal-linker`, `local-seo-strategist`. Step 5 reads the relevant spec from the local fork (`<synapse-path>/core/workers/<preset_type>.md`), parses its auto-load block, and presents it to the user. Step 9 forks that same spec into the project tier.
 
-### content-writer
+**No preset prose is embedded in THIS skill body.** The previous create-worker version embedded all preset auto-load lists as inline markdown — that meant editing a preset required updating two files (the embedded list AND the create-worker code that referenced it), and the embedded list silently drifted from what `load-worker` would have resolved. Promoting the presets to `core/workers/` made them the single source of truth: whatever `load-worker content-writer` would load is exactly what `create-worker` forks when the operator picks the content-writer preset.
 
-**Mission:** "Writes retrieval-ready blog posts, pillar pages, and landing copy from a brief or topic, applying the project's voice and AEO discipline."
-
-- **Methodologies:** `core/methodologies/execution/retrieval-readiness-writing.md`, `core/methodologies/execution/answer-engine-optimization.md`, `core/methodologies/execution/intro-pattern-selection.md`, `core/methodologies/execution/information-gain.md`, `core/methodologies/execution/citation-discipline.md`, `core/methodologies/execution/editorial-review-framework.md`, `core/methodologies/execution/section-first-content-production.md`, `core/methodologies/execution/eeat-content-sourcing.md`
-- **Processes:** `core/processes/execution/content-generation.md`, `core/processes/execution/content-editing.md`
-- **Core skills:** `core/skills/generation/outline-generator`, `core/skills/generation/content-section-writer`, `core/skills/generation/title-and-intro-writer`, `core/skills/generation/faq-cta-writer`, `core/skills/generation/internal-link-suggester`, `core/skills/generation/image-prompt-writer`
-- **Project files:** `project-config.md`, `style-guide.md`, `writing-samples/**`, `glossary.md` (optional), `banned-phrases.md` (optional), `editor-rules.md` (optional)
-
-### content-refresher
-
-**Mission:** "Audits an existing page, identifies decay / AEO gaps / rank slippage causes, and rewrites the affected sections in the project's voice."
-
-- **Methodologies:** `core/methodologies/strategy/content-refresh.md`, `core/methodologies/execution/retrieval-readiness-writing.md`, `core/methodologies/execution/answer-engine-optimization.md`, `core/methodologies/research/ai-retrieval-mechanics.md`
-- **Processes:** `core/processes/execution/content-refresh.md`, `core/processes/analysis/retrieval-readiness-audit.md`
-- **Core skills:** `core/skills/analysis/refresh-candidate-validator`, `core/skills/generation/refresh-section-writer`, `core/skills/generation/refresh-section-editor`, `core/skills/generation/refresh-report-generator`, `core/skills/data-access/gsc-api-reference`, `core/skills/data-access/page-scraper`
-- **Project files:** `project-config.md`, `style-guide.md`, `writing-samples/**`
-
-### link-builder
-
-**Mission:** "Discovers link prospects, drafts on-brand outreach, classifies replies, and tracks placements end-to-end."
-
-- **Methodologies:** `core/methodologies/execution/link-building-criteria.md`, `core/methodologies/execution/link-outreach-reply-handling.md`, `core/methodologies/execution/cold-email-deliverability.md`, `core/methodologies/execution/guest-post-content-strategy.md`, `core/methodologies/strategy/link-outreach-prospecting.md`, `core/methodologies/strategy/citation-shortlist-targeting.md`
-- **Processes:** `core/processes/research/prospect-discovery.md`, `core/processes/research/citation-shortlist-discovery.md`, `core/processes/execution/outreach-campaign-run.md`, `core/processes/execution/reply-triage.md`, `core/processes/execution/placement-tracker.md`
-- **Core skills:** `core/skills/analysis/link-vetter`, `core/skills/analysis/link-investment-estimator`, `core/skills/analysis/email-reply-classifier`, `core/skills/generation/outreach-message-writer`, `core/skills/data-access/contact-enricher`, `core/skills/data-access/smartlead-api`, `core/skills/data-access/prospect-discoverer-niche-relevant`, `core/skills/data-access/prospect-discoverer-broken-link`
-- **Project files:** `project-config.md`, `style-guide.md`
-
-### technical-seo-auditor
-
-**Mission:** "Crawls a site (Screaming Frog + GSC), surfaces tech-SEO issues across architecture, schema, and metadata, and recommends prioritized fixes."
-
-- **Methodologies:** `core/methodologies/architecture/site-architecture.md`, `core/methodologies/architecture/url-structure.md`, `core/methodologies/architecture/link-equity-management.md`, `core/methodologies/execution/schema-strategy.md`, `core/methodologies/execution/title-tag-meta-description.md`
-- **Processes:** `core/processes/client-engagement/site-architecture-planning.md`
-- **Core skills:** `core/skills/analysis/technical-seo-page-audit`, `core/skills/analysis/screaming-frog-crawl-compare`, `core/skills/analysis/screaming-frog-issue-extract`, `core/skills/analysis/screaming-frog-url-inspect`, `core/skills/analysis/sitemap-diff`, `core/skills/analysis/cross-link-auditor`, `core/skills/data-access/screaming-frog-crawl`, `core/skills/data-access/sitemap-discoverer`, `core/skills/data-access/gsc-api-reference`
-- **Project files:** `project-config.md`
-
-### topical-map-builder
-
-**Mission:** "Generates and validates topical maps for a new lane or niche — user stories → queries → clusters → backlog."
-
-- **Methodologies:** `core/methodologies/strategy/content-planning.md`, `core/methodologies/strategy/content-lane-discipline.md`, `core/methodologies/strategy/backlog-topic-generation.md`, `core/methodologies/strategy/target-market-landscape.md`, `core/methodologies/research/user-stories.md`, `core/methodologies/research/stories-to-queries.md`
-- **Processes:** `core/processes/research/content-planning.md`, `core/processes/research/user-stories.md`, `core/processes/research/stories-to-queries.md`, `core/processes/analysis/lane-portfolio-audit.md`
-- **Core skills:** `core/skills/generation/backlog-topic-generator`, `core/skills/generation/topic-idea-generator`, `core/skills/analysis/semantic-keyword-cluster`, `core/skills/analysis/query-deserves-page`, `core/skills/analysis/ai-visibility-topic-validator`, `core/skills/analysis/topic-final-validator`, `core/skills/data-access/knowledge-graph-lookup`, `core/skills/data-access/volume-checker`
-- **Project files:** `project-config.md`, `style-guide.md`
-
-### aeo-optimizer
-
-**Mission:** "Targets answer-engine retrieval specifically (ChatGPT / Perplexity / AIO panels) — audits chunk-readiness, citation hooks, and verbalization patterns."
-
-- **Methodologies:** `core/methodologies/execution/answer-engine-optimization.md`, `core/methodologies/research/ai-retrieval-mechanics.md`, `core/methodologies/research/ai-search-citation-mechanics.md`, `core/methodologies/research/answer-format-taxonomy.md`, `core/methodologies/execution/retrieval-readiness-writing.md`, `core/methodologies/execution/citation-discipline.md`
-- **Processes:** `core/processes/analysis/aio-readiness-audit.md`, `core/processes/analysis/retrieval-readiness-audit.md`
-- **Core skills:** `core/skills/analysis/aeo-page-audit`, `core/skills/analysis/aio-lift-analyzer`, `core/skills/analysis/ai-citation-cross-reference`, `core/skills/data-access/chunk-frequency-scorer`, `core/skills/data-access/chunkscore-relevance-scorer`, `core/skills/data-access/aio-panel-lookup`, `core/skills/generation/verbalization-generator`
-- **Project files:** `project-config.md`, `style-guide.md`
-
-### programmatic-seo-operator
-
-**Mission:** "Spins up large sets of templated pages (locations, comparisons, alternatives) end-to-end — template → data → page → publish."
-
-- **Methodologies:** `core/methodologies/execution/local-landing-page-anatomy.md`, `core/methodologies/execution/service-page-positioning.md`, `core/methodologies/execution/ecommerce-category-pages.md`, `core/methodologies/architecture/geographic-page-hierarchy.md`, `core/methodologies/architecture/url-structure.md`
-- **Processes:** `core/processes/execution/wordpress-landing-page-create.md`
-- **Core skills:** `core/skills/generation/single-location-page-writer`, `core/skills/generation/category-subfolder-suggester`, `core/skills/generation/wordpress-page-publish`, `core/skills/generation/wordpress-internal-link-injector`, `core/skills/data-access/wordpress-connection`
-- **Project files:** `project-config.md`, `style-guide.md`
-
-### brand-voice-extractor
-
-**Mission:** "Reads writing samples + brand pages to extract / update a project's style guide, voice profile, and writing-samples corpus."
-
-- **Methodologies:** `core/methodologies/strategy/brand-baseline-assessment.md`, `core/methodologies/strategy/project-config-foundation.md`
-- **Processes:** `core/processes/client-engagement/brand-baseline-assessment.md`, `core/processes/client-engagement/profile-creation.md`
-- **Core skills:** `core/skills/research/client-brand-research`, `core/skills/research/client-brand-update`, `core/skills/generation/style-guide-writer`, `core/skills/generation/style-guide-combiner`, `core/skills/generation/writing-samples-extractor`, `core/skills/generation/brand-info-assembler`, `core/skills/data-access/page-scraper`
-- **Project files:** `project-config.md`, `style-guide.md`, `writing-samples/**`
+If the local fork is missing `core/workers/<preset_type>.md`, Step 5 hard-fails with a `sync-omnipresence` prompt. No fallback. (See Step 5's "Stale-fork hard-fail" paragraph.)
 
 ---
 
