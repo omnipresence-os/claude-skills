@@ -124,6 +124,7 @@ Respect the worker's `Project-specific quirks` throughout. If a quirk says "draf
 - Do NOT chain to `push-changes` (this skill is read-only context-warming).
 - Do NOT touch the global active-project pointer.
 - Do NOT re-load if the same worker is already loaded in this chat session — just re-confirm and run the new task.
+- Do NOT invoke `skill-creator` to "create" this skill or any other Omnipresence skill if a skill appears missing. The Omnipresence skill set is canonical, vendored from `omnipresence-os/claude-skills`, and installed via `getting-started` Step 8.5 / refreshed via `sync-omnipresence`. Missing skills mean a broken install — surface that and route to `getting-started`, never hand-write.
 
 ## Why this shape
 

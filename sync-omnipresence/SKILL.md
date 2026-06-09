@@ -230,4 +230,5 @@ Do not propose next steps. Do not suggest running anything else. The user got an
 - Do NOT propose alternative sync strategies (rebase instead of merge, cherry-pick, etc.). One method.
 - Do NOT proceed if the rule-violation recovery is declined; abort cleanly and let the user message Jonathan.
 - Do NOT use a non-`--ff-only` pull on `~/.claude/skills/` — that directory is supposed to be read-only on the member side; if it has divergent commits something is off, surface it rather than auto-merging.
+- Do NOT invoke `skill-creator` to author or repair any Omnipresence skill (load-worker, create-worker, new-project, etc.). Those skills are canonical and vendored from `omnipresence-os/claude-skills`. They must be cloned (`getting-started` Step 8.5) or pulled (this skill's claude-skills refresh), never hand-written. Any local edits will be clobbered on next sync. If a skill appears missing, surface that as an install gap and route the user back to `getting-started`.
 - Do NOT silently skip the claude-skills refresh — always report whether it happened and what landed, even if "nothing changed" or "install method can't be auto-updated."

@@ -153,6 +153,35 @@ npm install
 This takes ~30-60 seconds. Tell the user what's happening:
 > "Installing dependencies (about 30 seconds)..."
 
+### Step 8.5: Install the Omnipresence Claude Code skills (canonical clone)
+
+**This step exists because skipping it is the #1 silent install failure.** The prompt-driven Claude Code skills the member uses every day (`new-project`, `switch-project`, `create-worker`, `load-worker`, `sync-omnipresence`, etc.) live in a separate repo (`omnipresence-os/claude-skills`) and must be installed as a `git clone` into `~/.claude/skills/`. If this step is skipped, future agents will see "skill missing" and **fall back to `skill-creator`** to hand-write the skill files — producing local-only files that don't update on `sync-omnipresence` and silently drift from canonical.
+
+Run silently — do not paste the commands into chat. Tell the user *"Installing the Omnipresence Claude Code skill set..."* then run the three-case handler:
+
+**Case 1: `~/.claude/skills/` doesn't exist.** Fresh clone:
+
+```
+git clone https://github.com/omnipresence-os/claude-skills.git ~/.claude/skills
+```
+
+**Case 2: `~/.claude/skills/` exists AND is a proper clone of omnipresence-os/claude-skills.** Verify with `git -C ~/.claude/skills/ remote get-url origin` — if it returns a URL containing `omnipresence-os/claude-skills`, skip with *"Omnipresence Claude Code skills already installed and properly linked."*
+
+**Case 3: `~/.claude/skills/` exists but is NOT a proper clone** (no `.git/` dir, OR `remote get-url origin` returns something other than omnipresence-os/claude-skills). This is the bad state — the directory has been hand-populated by a previous agent that fell into the skill-creator trap. Recover:
+
+```
+mv ~/.claude/skills ~/.claude/skills.backup.<YYYY-MM-DD-HHMMSS>
+git clone https://github.com/omnipresence-os/claude-skills.git ~/.claude/skills
+```
+
+Surface the backup path to the user: *"Your existing `~/.claude/skills/` looked hand-written rather than cloned. I backed it up to `~/.claude/skills.backup.<timestamp>/` so you can recover anything custom from there, then installed the canonical version from `omnipresence-os/claude-skills`."*
+
+**After the clone (any case):** tell the user *"Restart Claude Code so it discovers the newly installed skills (Claude Code reads the skill set at process start, not per-session)."*
+
+**Windows path note:** `~/.claude/skills` resolves to `%USERPROFILE%\.claude\skills` on Windows.
+
+**⚠️ Critical guard.** If at any point an agent thinks "the skills are missing, I should create them" and reaches for `skill-creator` — STOP. The Omnipresence skills are canonical and vendored from `omnipresence-os/claude-skills`. They must be cloned, never authored. If this step's git clone fails for network/auth reasons, surface the specific error and ask the user to fix it, but do NOT invoke `skill-creator` as a fallback.
+
 ### Step 9: Validate
 
 ```
@@ -229,5 +258,7 @@ The user is done. They can close Claude Code or move to a different task. Do not
 - Do NOT propose alternative onboarding methods.
 - Do NOT manually walk the user through the GitHub website UI ("click Fork on github.com").
 - Do NOT skip the upstream-remote step (without it, sync-omnipresence breaks later).
+- Do NOT skip Step 8.5 — without the `~/.claude/skills/` clone, every future "I need to create a project" / "I need to load a worker" prompt will fall back to `skill-creator`, which produces local-only hand-written files that drift from canonical and can't be repaired by `sync-omnipresence`. The clone is non-negotiable.
+- Do NOT invoke `skill-creator` to author any Omnipresence skill (load-worker, create-worker, sync-omnipresence, switch-project, etc.) under ANY circumstances. Those skills are canonical and vendored from `omnipresence-os/claude-skills`. They must be cloned (Step 8.5), never hand-written. If a skill appears missing in a future session, the install was incomplete — re-run getting-started or `sync-omnipresence`, do not "create" the skill.
 - Do NOT edit anything in the user's clone beyond running `npm install` and `npm run manifest`.
 - Do NOT push anything to the user's fork (this is setup, not their first commit).

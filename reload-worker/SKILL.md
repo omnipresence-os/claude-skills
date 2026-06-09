@@ -90,6 +90,7 @@ If an in-flight task is identifiable, resume it now, applying the freshly-loaded
 - Do NOT silently skip the user-visible confirmation in Step 4. The user needs to know the re-warm completed before continuing the task.
 - Do NOT touch the global active-project pointer.
 - Do NOT prompt the user with "are you sure?" — reload-worker is cheap and the cost of NOT reloading is methodology drift.
+- Do NOT invoke `skill-creator` to "create" this skill or any other Omnipresence skill if a skill appears missing. The Omnipresence skill set is canonical, vendored from `omnipresence-os/claude-skills`, and installed via `getting-started` Step 8.5 / refreshed via `sync-omnipresence`. Missing skills mean a broken install — surface that and route to `getting-started`, never hand-write.
 
 ## Why this exists
 
