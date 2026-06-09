@@ -60,7 +60,7 @@ Creating worker for project=<slug> (resolved from <chat-session | global-default
 
 ### Step 2 — Pick preset or custom (AskUserQuestion, two panels)
 
-There are 6 total options (5 shipped presets + Custom). The presets are the 5 worker specs shipped at `core/workers/<role>.md` in the synapse upstream — these are the same specs `load-worker` resolves to when a member loads a worker by slug without forking. Picking a preset here means "fork the core spec into my project for customization." Split across two AskUserQuestion calls.
+There are 7 total options (6 shipped presets + Custom). The presets are the 6 worker specs shipped at `core/workers/<role>.md` in the synapse upstream — these are the same specs `load-worker` resolves to when a member loads a worker by slug without forking. Picking a preset here means "fork the core spec into my project for customization." Split across two AskUserQuestion calls.
 
 **Panel 1 — "What kind of worker?":**
 
@@ -80,11 +80,12 @@ If the user picks "Other / Show me more," ask Panel 2.
 | Option | When to pick |
 |---|---|
 | Local SEO strategist | URL → revenue-led visibility report for a cold prospect (organic / map-pack / AI) |
+| GEO source finder | ChatGPT citation-source audit — ranks the cited "real estate" by frequency across 10 same-intent probes + diagnoses why the prospect is absent |
 | Custom / Other | None of the above — describe the role and I'll build a custom auto-load list via the methodology MCP |
 
-If user picks "Local SEO strategist," set `preset_type = local-seo-strategist`. If "Custom / Other," set `mode = custom` and ask *"Describe the worker's role in one sentence — I'll build a custom auto-load list using the methodology MCP."* Otherwise set `mode = preset` with the chosen preset_type.
+If user picks "Local SEO strategist," set `preset_type = local-seo-strategist`. If "GEO source finder," set `preset_type = geo-source-finder`. If "Custom / Other," set `mode = custom` and ask *"Describe the worker's role in one sentence — I'll build a custom auto-load list using the methodology MCP."* Otherwise set `mode = preset` with the chosen preset_type.
 
-**About the 5 shipped presets.** These five were sourced from Jonathan's `rank-agent` fork where each has at least one verified live test run. Other roles (link-builder, technical-seo-auditor, AEO/AIO optimizer, programmatic SEO operator, brand-voice extractor) were proposed in earlier preset catalogs but never validated in real use — they are NOT shipped as core defaults. If a member wants one of those, use `mode = custom` and the MCP `lookup` flow.
+**About the 6 shipped presets.** These six were sourced from Jonathan's `rank-agent` fork where each has at least one verified live test run. Other roles (link-builder, technical-seo-auditor, AEO/AIO optimizer, programmatic SEO operator, brand-voice extractor) were proposed in earlier preset catalogs but never validated in real use — they are NOT shipped as core defaults. If a member wants one of those, use `mode = custom` and the MCP `lookup` flow.
 
 ### Step 3 — Capture worker display name + derive slug
 
