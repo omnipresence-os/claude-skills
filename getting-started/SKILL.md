@@ -109,14 +109,19 @@ Capture the user's GitHub username from `gh api user --jq .login`.
 
 ### Step 5: Choose a local clone path
 
-Default path:
-- **Windows:** `%USERPROFILE%\Documents\omnipresence\synapse`
-- **Mac/Linux:** `~/Documents/omnipresence/synapse`
+Default path — deliberately OUTSIDE cloud-synced folders (NOT `Documents`, which Windows Google Drive / OneDrive "folder backup" watches by default):
+- **Windows:** `%USERPROFILE%\omnipresence\synapse`
+- **Mac/Linux:** `~/omnipresence/synapse`
 
 Ask the user, once:
 > "I'll clone synapse to `<DEFAULT_PATH>`. Press Enter to accept, or paste a different absolute path."
 
 If they press Enter, use the default. If they paste something, use that. Don't ask twice.
+
+**Cloud-sync guard (do this before cloning).** Check whether the chosen path sits under a cloud-synced / backed-up folder — on Windows that's `Documents`, `Desktop`, `Pictures`, `Videos` (Google Drive and OneDrive "folder backup" watch these) plus any `OneDrive`, `Google Drive`, `Dropbox`, or `iCloud Drive` root; on Mac the `Desktop` / `Documents` folders when iCloud "Desktop & Documents" is on, plus the same third-party roots. If the chosen path is inside one, warn and steer off it:
+> "Heads up — `<path>` is inside a cloud-synced folder. Syncing a live git repo causes file-locking errors during git operations and copies your entire `.git` — including any secret ever committed — into cloud storage. I strongly recommend `<DEFAULT_PATH>` instead. Clone to the synced folder anyway?"
+
+Default to the non-synced path unless the user explicitly insists.
 
 Make sure the parent directory exists (`mkdir -p` equivalent for the chosen platform).
 
